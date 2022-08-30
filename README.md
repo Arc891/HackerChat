@@ -1,5 +1,7 @@
 # HackerChat
 
+HackerChat is meant as a personal use CLI chat service, in which you can send small text messages from one client to another. The functionality is still basic, but is looking to expand with seperated chat rooms, chats being stored and dynamic interface.
+
 ### Personal chat
 This is a chat program where you can send messages to people who are online, and receive their messages and server messages all in one screen. No chats are separated. Supports !who command to see who is online, and !quit to exit.
 
