@@ -6,6 +6,16 @@ import os
 
 from psutil import boot_time
 
+WAI = "."
+INF = "*"
+SUC = "+"
+ERR = "!"
+INP = ">"
+
+HOST = '127.0.0.1'      # The server's hostname or IP address
+PORT = 5378             # The port used by the server
+host_port = (HOST, PORT)
+
 T_WIDTH = os.get_terminal_size().columns
 T_HEIGHT = os.get_terminal_size().lines
 
@@ -16,52 +26,76 @@ UNKNOWN = "UNKNOWN\n".encode("utf-8")
 SEND_OK = "SEND-OK\n".encode("utf-8")
 DELIVERY = "DELIVERY".encode("utf-8")
 
-# with open('logo-full-width.txt', 'r') as f:
-#     for l in f:
-#         print(len(l))
+"""
+Prints an empty row and places the cursor at the start of the line to overwrite it.
+"""
+def print_empty_row():
+    global T_WIDTH
+    print(f"| {'':^{T_WIDTH-4}} |")
+    print(f"\033[A", end="| ")
+
+
+def print_line():
+    global T_WIDTH
+    print("-" * T_WIDTH)
+
+
+""" 
+Custom print function in style of the terminal, 
+taking a 2nd parameter which defines the icon between the square brackets. 
+"""
+def cprint(msg, pre=INF):
+    global T_WIDTH
+    print_empty_row()
+    print(f"[{pre}] {msg:<{T_WIDTH-8}} |")
+    # print(f"\033[A", end="| > ")
+
+
+"""
+Checks the width of the screen and prints the appropriate logo to the middle of the screen.
+"""
+def print_logo_middle():
+    global T_WIDTH
+    # The full logo is 57 characters wide, so accounting for the bars on the side totals to 59 chars to display
+    logo_name = LOGO_FULL_WIDTH if T_WIDTH >= 59 else LOGO_HALF_WIDTH 
+    with open(logo_name, 'r') as f:
+        for line in f:
+            print(f"| {line[:-1]:^{T_WIDTH-4}} |")
+
+
+
+"""
+Prints the welcoming interface when starting the application. 
+"""
+def print_interface(clear=False):
+    global T_WIDTH
+    instructions = ['Type !quit to exit.', 
+                    'Type !who to see who is in the chatroom.', 
+                    'Type @username to send a message to username.']
+    
+    line = "-" * T_WIDTH
+    
+    if clear == True: print("\033c", end="")
+
+    print(line)
+    print_logo_middle()
+    for i in instructions: cprint(i, INF)
+    print(line)
+
+
 
 """
 A function to keep track of the terminal width, 
 and will resize the current display if the width changes.
 """
-def check_width(width):
+def dynamic_rescaler():
+    global T_WIDTH
     while True:
-        if os.get_terminal_size().columns is not width:
+        if os.get_terminal_size().columns is not T_WIDTH:
             T_WIDTH = os.get_terminal_size().columns
-            width = T_WIDTH
-            print_interface(width)
-
-def print_logo_middle(width = T_WIDTH):
-    # The full logo is 57 characters wide, so accounting for the bars on the side totals to 59 chars to display
-    logo_name = LOGO_FULL_WIDTH if width >= 59 else LOGO_HALF_WIDTH 
-    with open(logo_name, 'r') as f:
-        for line in f:
-            print(f"| {line[:-1]:^{width-4}} |")
-    # # If T_WIDTH is uneven, then the logo will be centered, otherwise if it's even it will be off by one, so add an optional extra space
-    # uneven_spaces = " " if (width % 2 == 0) else ""
-    
-    # with open(logo_name, 'r') as logo:
-    #     for l in logo:
-    #         offset = ((width - 2) - len(l)) // 2
-    #         filler = " " * (offset)
-
-    #         print(f"|{filler}{l[:-1]}{filler}{uneven_spaces}|")
+            print_interface()
 
 
-def print_interface(width = T_WIDTH):
-    line = "-" * width
-    print(line)
-    
-    print_logo_middle(width)
-    
-    instructions = ['Type !quit to exit.', 'Type !who to see who is in the chatroom.', 'Type @username to send a message to username.']
-    for i in instructions:
-        print(f"| {i:<{width-3}}|")
-    
-
-    # print(interface, bottom_line, sep="\n")
-
-print_interface()
 
 def data_receive(s, host_port):
     while s.connect_ex(host_port) != 9:
@@ -96,11 +130,21 @@ def data_receive(s, host_port):
             print('| Server:', decoded_data[:len(decoded_data)-1])
 
 def messenger_function():
-    HOST = '127.0.0.1'      # The server's hostname or IP address
-    PORT = 5378             # The port used by the server
-    host_port = (HOST, PORT)
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    user = input('What\'s your username? ')
+    cprint(f"Connecting to {HOST}:{PORT}...", INF)
+
+    try: 
+        s.connect((HOST, PORT))
+    except ConnectionRefusedError:
+        cprint(f"Connection to {HOST}:{PORT} failed. Server is most likely offline.", ERR)
+        return
+    
+    cprint("Connected.", SUC)
+    
+    print_empty_row()
+    user = input("[.] Enter your name: ")
+
     msg = " "
     hello = "HELLO-FROM " + user + "\n"
     who = "WHO\n"
@@ -110,7 +154,6 @@ def messenger_function():
 
     string_bytes = hello.encode("utf-8")
 
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     while not name:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -138,7 +181,7 @@ def messenger_function():
     t = threading.Thread(target=data_receive, args=(s, host_port), daemon=True)
     t.start()
     msg = " "
-    print_interface()
+    print_interface(clear=True)
     
     while msg != "!quit": 
 
@@ -173,11 +216,12 @@ def messenger_function():
     exit()
 
 def main():
+    print_interface()
     messenger_function()
 
 
 if __name__ == "__main__":
     print(T_WIDTH)
-    t_width = threading.Thread(target=check_width, args=(T_WIDTH,), daemon=True)
+    t_width = threading.Thread(target=dynamic_rescaler, daemon=True)
     t_width.start()
     main()
