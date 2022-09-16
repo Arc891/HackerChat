@@ -2,27 +2,66 @@ from code import interact
 import socket
 import threading
 import time
+import os
 
 from psutil import boot_time
 
-interface = """\033c
--------------------------------------------------
-| Welcome to the chatroom!                      |
-|                                               |
-| Type !quit to exit.                           |
-| Type !who to see who is in the chatroom.      |
-| Type @username to send a message to username. |
-|                                               |"""
+T_WIDTH = os.get_terminal_size().columns
+T_HEIGHT = os.get_terminal_size().lines
 
-bottom_line = "-------------------------------------------------"
+LOGO_FULL_WIDTH = 'logo-full-width.txt' # 57 chars wide
+LOGO_HALF_WIDTH = 'logo-half-width.txt' # 35 chars wide
 
 UNKNOWN = "UNKNOWN\n".encode("utf-8")
 SEND_OK = "SEND-OK\n".encode("utf-8")
 DELIVERY = "DELIVERY".encode("utf-8")
 
-def print_interface():
-    print(interface, bottom_line, sep="\n")
+# with open('logo-full-width.txt', 'r') as f:
+#     for l in f:
+#         print(len(l))
 
+"""
+A function to keep track of the terminal width, 
+and will resize the current display if the width changes.
+"""
+def check_width(width):
+    while True:
+        if os.get_terminal_size().columns is not width:
+            T_WIDTH = os.get_terminal_size().columns
+            width = T_WIDTH
+            print_interface(width)
+
+def print_logo_middle(width = T_WIDTH):
+    # The full logo is 57 characters wide, so accounting for the bars on the side totals to 59 chars to display
+    logo_name = LOGO_FULL_WIDTH if width >= 59 else LOGO_HALF_WIDTH 
+    with open(logo_name, 'r') as f:
+        for line in f:
+            print(f"| {line[:-1]:^{width-4}} |")
+    # # If T_WIDTH is uneven, then the logo will be centered, otherwise if it's even it will be off by one, so add an optional extra space
+    # uneven_spaces = " " if (width % 2 == 0) else ""
+    
+    # with open(logo_name, 'r') as logo:
+    #     for l in logo:
+    #         offset = ((width - 2) - len(l)) // 2
+    #         filler = " " * (offset)
+
+    #         print(f"|{filler}{l[:-1]}{filler}{uneven_spaces}|")
+
+
+def print_interface(width = T_WIDTH):
+    line = "-" * width
+    print(line)
+    
+    print_logo_middle(width)
+    
+    instructions = ['Type !quit to exit.', 'Type !who to see who is in the chatroom.', 'Type @username to send a message to username.']
+    for i in instructions:
+        print(f"| {i:<{width-3}}|")
+    
+
+    # print(interface, bottom_line, sep="\n")
+
+print_interface()
 
 def data_receive(s, host_port):
     while s.connect_ex(host_port) != 9:
@@ -138,4 +177,7 @@ def main():
 
 
 if __name__ == "__main__":
+    print(T_WIDTH)
+    t_width = threading.Thread(target=check_width, args=(T_WIDTH,), daemon=True)
+    t_width.start()
     main()
