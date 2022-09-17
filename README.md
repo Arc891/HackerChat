@@ -14,9 +14,10 @@ The open chat is a chat where you connect with the server, and enter a global ch
 
 ### Personal chat
 
-- [ ]  Merge with open chat interface
-- [ ]  Login with username and password
+- [x]  Dynamic interface (for now, will refine later)
+- [x]  Merge with open chat interface
+- [ ]  Login with username and password:
+  -  [ ] Change method of sending data to JSON
 - [ ]  Seperate chats
 - [ ]  Chat messages stored
 - [ ]  Group chats
-- [ ]  Dynamic interface

@@ -3,6 +3,8 @@ import socket
 import threading
 import time
 import os
+import bcrypt
+import getpass
 
 from psutil import boot_time
 
@@ -11,6 +13,7 @@ INF = "*"
 SUC = "+"
 ERR = "!"
 INP = ">"
+SER = "S"
 
 HOST = '127.0.0.1'      # The server's hostname or IP address
 PORT = 5378             # The port used by the server
@@ -51,6 +54,18 @@ def cprint(msg, pre=INF):
     # print(f"\033[A", end="| > ")
 
 
+
+"""
+Custom input function in style of the terminal, 
+taking a 2nd parameter checking if the input is going to be a password,
+if so, the input will be hidden while typed.
+"""
+def cinput(msg, pwd=False):
+    global T_WIDTH
+    print_empty_row()
+    if pwd: return getpass.getpass(f"\033[A| [{INP}] {msg}") # Moves cursor up one line and adds layout since getpass() adds a newline
+    return input(f"[{INP}] {msg}")
+
 """
 Checks the width of the screen and prints the appropriate logo to the middle of the screen.
 """
@@ -75,7 +90,7 @@ def print_interface(clear=False):
     
     line = "-" * T_WIDTH
     
-    if clear == True: print("\033c", end="")
+    if clear: print("\033c", end="")
 
     print(line)
     print_logo_middle()
@@ -106,28 +121,29 @@ def data_receive(s, host_port):
         if not data:
             break
         elif data == UNKNOWN:
-            print("Data is unknown")
+            cprint("Data is unknown", ERR)
             time.sleep(0.1)
             try:
                 s.getsockname()
             except OSError:
                 break
-            print('Server:', decoded_data[:len(decoded_data)-1])
+            cprint(decoded_data[:len(decoded_data)-1], SER)
             break
         elif data == SEND_OK:
             # print("Data is send ok")
-            print(data)
+            cprint(data, SER)
             break
         elif DELIVERY in data:
-            print("Data is delivered")
+            cprint("Data is delivered", SER)
             decoded_data = decoded_data.split(" ")
             
             print(decoded_data[1], end=": ")
             for word in decoded_data[2:-1]:
                 print(word, end=" ")
-            print("\n| > ", end=" ")
+            cprint("\n", INP)
         else:
-            print('| Server:', decoded_data[:len(decoded_data)-1])
+            cprint(decoded_data[:len(decoded_data)-1], SER)
+
 
 def messenger_function():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -142,8 +158,12 @@ def messenger_function():
     
     cprint("Connected.", SUC)
     
-    print_empty_row()
-    user = input("[.] Enter your name: ")
+    user = cinput("Enter your name: ")
+    pwd = cinput("Enter your password: ", pwd=True).encode("utf-8")
+    # cprint(pwd.decode("utf-8"), INF)
+    pwd = bcrypt.hashpw(pwd, bcrypt.gensalt())
+    # cprint(pwd.decode("utf-8"), INF)
+    # time.sleep(2)
 
     msg = " "
     hello = "HELLO-FROM " + user + "\n"
@@ -186,8 +206,7 @@ def messenger_function():
     while msg != "!quit": 
 
         if not enter:
-            print("|", end=" ")
-            msg = input('> ').strip()
+            msg = cinput("")
 
         enter = False
 

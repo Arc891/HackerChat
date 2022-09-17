@@ -28,7 +28,8 @@ def error_handler(connection, address, err_type):
     connection.send((err_type + '\n').encode('utf-8'))
     return
 
-def disconnect_client(connection):
+# TODO: Replace clients and usernames for JSON format: update statuses to offline and remove client for next connection
+def disconnect_client(connection): 
     pop_index = 0 - (len(clients) - clients.index(connection))
     clients.pop(pop_index)
     usernames.pop(pop_index)
