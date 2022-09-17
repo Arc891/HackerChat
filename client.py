@@ -162,9 +162,15 @@ def messenger_function():
     user = cinput("Enter your name: ")
     pwd = cinput("Enter your password: ", pwd=True).encode("utf-8")
     # cprint(pwd.decode("utf-8"), INF)
-    pwd = bcrypt.hashpw(pwd, bcrypt.gensalt())
+    pwd = bcrypt.hashpw(pwd, bcrypt.gensalt()).decode("utf-8")
     # cprint(pwd.decode("utf-8"), INF)
     # time.sleep(2)
+    
+    
+    
+    u = User(user, pwd) # Create a user object
+    print(u.to_json())
+    time.sleep(10)
 
     msg = " "
     hello = "HELLO-FROM " + user + "\n"
