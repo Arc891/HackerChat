@@ -31,9 +31,15 @@ server.listen(100)
 clients = []
 usernames = []
 
+def new_msg(msg_type, content=""):
+    return Message(None, msg_type, content=content).to_json().encode('utf-8')
+
+
 def error_handler(connection, address, err_type):
-    print("Exception", err_type, "sent to", address)
-    connection.send((err_type + '\n').encode('utf-8'))
+    print(f"Exception {err_type} sent to {address}.")
+    err_msg = Message(None, err_type)
+    connection.send(new_msg(err_type))
+    # connection.send((f"{err_type}\n").encode('utf-8'))
     return
 
 # TODO: Replace clients and usernames for JSON format: update statuses to offline and remove client for next connection
@@ -53,7 +59,8 @@ def check_socket(connection):
     
 def client_setup(connection, address):
     if len(clients) >= 100:
-        connection.send(("BUSY\n").encode('utf-8'))
+        connection.send(new_msg("BUSY"))
+        # connection.send(("BUSY\n").encode('utf-8'))
         return
     
     data = connection.recv(4096)
@@ -62,32 +69,54 @@ def client_setup(connection, address):
     msg = Message(**msg_data)
     user = User(**msg.sender)
 
-    print(f"Received {msg} from {address}")
+    print(f"{msg.message_type}, {user.username}, {user.password}")
+    # print(f"Received {msg} from {address}")
 
     username = user.username
     
-    if msg.message_type == 'HELLO-FROM':
+    if msg.message_type == "SIGNUP":
+        print("New user signing up.")
         for char in username:
             if char not in user_chars:
                 error_handler(connection, address, "BAD-RQST-BODY")
                 return
 
-        # if os.path.isfile(f"users/{username}.json"):
-            
-
-        if username not in usernames:
+        if os.path.isfile(f"users/{username}.json"):
+            error_handler(connection, address, "IN-USE")
+            return
+        else:
+            connection.send(new_msg("HELLO"))
+            # connection.send(("HELLO " + username + "\n").encode("utf-8"))
+            user.save()
             clients.append(connection)
             usernames.append(username)
-            connection.send((f'HELLO {username}\n').encode('utf-8'))
             client_thread(connection, address)
+
+        # if username not in usernames:
+        #     clients.append(connection)
+        #     usernames.append(username)
         
+        # else:
+
+    elif msg.message_type == "LOGIN":
+        if os.path.isfile(f"users/{username}.json"):
+            if user.verify_login(user.password):
+                connection.send(new_msg("HELLO"))
+                clients.append(connection)
+                usernames.append(username)
+                client_thread(connection, address)
+            else:
+                error_handler(connection, address, "BAD-PASS")
+                return
         else:
-            error_handler(connection, address, "IN-USE")
+            error_handler(connection, address, "UNKNOWN")
             return
 
     else:
+        print("Unknown message type.")
         error_handler(connection, address, "BAD-RQST-HDR")
         return
+    
 
 def client_thread(connection, address):
     print(address, "has started it's thread.")        
@@ -107,7 +136,8 @@ def client_thread(connection, address):
                     else:
                         user_string += usernames[user]
 
-                connection.send(("WHO-OK " + user_string + "\n").encode("utf-8"))
+                connection.send(new_msg("WHO-OK"))
+                # connection.send(("WHO-OK " + user_string + "\n").encode("utf-8"))
             
             elif data[:5] == ("SEND ").encode("utf-8"):
                 message = data[5:].decode("utf-8")
@@ -128,8 +158,10 @@ def client_thread(connection, address):
                     con_index = usernames.index(receiver)
                     sender_index = clients.index(connection)
                     
-                    connection.send(("SEND-OK\n").encode("utf-8"))
-                    clients[con_index].send(("DELIVERY " + usernames[sender_index] + " " +  send_message + "\n").encode("utf-8"))
+                    connection.send(new_msg("SEND-OK"))
+                    # connection.send(("SEND-OK\n").encode("utf-8"))
+                    clients[con_index].send(new_msg("DELIVERY", send_message))
+                    # clients[con_index].send(("DELIVERY " + usernames[sender_index] + " " +  send_message + "\n").encode("utf-8"))
                     
             elif data == b'\n':
                 disconnect_client(connection)
@@ -141,11 +173,13 @@ def client_thread(connection, address):
 
         except UNKNOWN:
             print("Exception UNKNOWN sent")
-            connection.send(('UNKNOWN\n').encode('utf-8'))
+            connection.send(new_msg("UNKNOWN"))
+            # connection.send(('UNKNOWN\n').encode('utf-8'))
         
         except BAD_RQST_BODY:
             print("Exception BAD-RQST-BODY sent")
-            connection.send(('BAD-RQST-BODY\n').encode('utf-8'))
+            connection.send(new_msg("BAD-RQST-BODY"))
+            # connection.send(('BAD-RQST-BODY\n').encode('utf-8'))
 
         except ConnectionResetError:
             disconnect_client(connection)

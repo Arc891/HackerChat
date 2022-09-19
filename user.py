@@ -1,19 +1,27 @@
 import json
-import bcrypt
+import os
 
 class User(object):
-    def __init__(self, username, password, socket=None, status='offline', address=("127.0.0.1", 5378)):
+    def __init__(self, username, password: str = "", status='offline', address=("127.0.0.1", 5378)):
         self.username = username
         self.password = password
-        self.socket = socket
         self.address = address
         self.status = status
     
     def __repr__(self) -> str:
         return self.to_json()
 
+    def save(self):
+        with open(f"users/{self.username}.json", "w") as f:
+            f.write(self.to_json())
+        f.close()
+        return True
+
     def verify_login(self, password):
-        return bcrypt.checkpw(password.encode('utf-8'), self.password.encode('utf-8'))
+        with open(f"users/{self.username}.json", "r") as f:
+            user = User(**json.loads(f.read()))
+        f.close()
+        return user.password == password
 
     def to_json(self):
         return json.dumps(self, default=lambda o: o.__dict__, 

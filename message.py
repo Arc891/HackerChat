@@ -2,7 +2,7 @@ import json
 from user import *
 
 class Message(object):
-    def __init__(self, sender: User, message_type, content = "", receiver: User = None):
+    def __init__(self, sender: User, message_type: str, content: str = "", receiver: User = None):
         self.sender = sender
         self.receiver = receiver
         self.message_type = message_type
@@ -22,7 +22,6 @@ Message format:
         "sender": {
             "username": "username",
             "password": "password",
-            "socket": "socket",
             "address": "address",
             "status": "status"
         }

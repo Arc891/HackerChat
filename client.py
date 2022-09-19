@@ -1,11 +1,11 @@
 from code import interact
+from hashlib import sha256
 from user import *
 from message import *
 import socket
 import threading
 import time
 import os
-import bcrypt
 import getpass
 
 from psutil import boot_time
@@ -81,6 +81,7 @@ def print_logo_middle():
     with open(logo_name, 'r') as f:
         for line in f:
             print(f"| {line[:-1]:^{T_WIDTH-4}} |")
+    f.close()
 
 
 
@@ -119,13 +120,16 @@ def dynamic_rescaler():
 
 def data_receive(s, host_port):
     while s.connect_ex(host_port) != 9:
-        data = b''
-        while b'\n' not in data:
-            data += s.recv(2)
+        data = s.recv(4096)
         decoded_data = data.decode("utf-8")
+        
         if not data:
             break
-        elif data == UNKNOWN:
+        
+        print(decoded_data)
+        msg = Message(**json.loads(decoded_data))
+
+        if msg.message_type == UNKNOWN:
             cprint("Data is unknown", ERR)
             time.sleep(0.1)
             try:
@@ -134,20 +138,17 @@ def data_receive(s, host_port):
                 break
             cprint(decoded_data[:len(decoded_data)-1], SER)
             break
-        elif data == SEND_OK:
+        elif msg.message_type == SEND_OK:
             # print("Data is send ok")
             cprint(data, SER)
             break
-        elif DELIVERY in data:
+        elif msg.message_type == "DELIVERY":
             cprint("Data is delivered", SER)
-            decoded_data = decoded_data.split(" ")
             
-            print(decoded_data[1], end=": ")
-            for word in decoded_data[2:-1]:
-                print(word, end=" ")
+            print(msg.content)
             cprint("\n", INP)
         else:
-            cprint(decoded_data[:len(decoded_data)-1], SER)
+            cprint(f"Online: {msg.content}", SER)
 
 
 def messenger_function():
@@ -187,14 +188,16 @@ def messenger_function():
             continue
         else: 
             break
-    pwd = bcrypt.hashpw(pwd.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
-    remember = cinput("Do you want to remember your login details? (y/n): ")
+    pwd = sha256(pwd.encode("utf-8")).hexdigest()
+
+    # remember = cinput("Do you want to remember your login details? (y/n): ")
     
     
     u = User(user, pwd) 
-    print(u.to_json())
-    message2 = Message(u, "HELLO-FROM")
+    msg_type = "SIGNUP" if SIGNUP else "LOGIN"
+    message2 = Message(u, msg_type)
+    print(s)
     print(message2.to_json())
 
     
@@ -203,33 +206,31 @@ def messenger_function():
     who = "WHO\n"
 
     enter = True
-    name = False
 
     string_bytes = message2.to_json().encode("utf-8")
 
 
-    while not name:
+    while True:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect(host_port)
         s.sendall(string_bytes)
         data = s.recv(4096)
         decoded_data = data.decode("utf-8")
-        print('Server:', decoded_data[:len(decoded_data)-1])
+        msg = Message(**json.loads(decoded_data))
 
-        if data == ("HELLO " + user + "\n").encode("utf-8"):
+        if msg.message_type == "HELLO":
             string_bytes = b''
-            name = True
-            break 
+            break
 
         else:
-            print(data)
+            print(msg)
             s.close()
-            if data == ("BAD-RQST-BODY\n").encode("utf-8"):
+            if msg.message_type == "BAD-RQST-BODY":
                 user = input('Username is invalid, please enter another: ')
             else:
                 user = input('Username is taken, please enter another: ')
             hello = "HELLO-FROM " + user + "\n"
-            string_bytes = hello.encode("utf-8")
+            string_bytes = Message(User(user, pwd), msg_type)
     
     t = threading.Thread(target=data_receive, args=(s, host_port), daemon=True)
     t.start()
