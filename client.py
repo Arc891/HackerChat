@@ -1,5 +1,6 @@
 from code import interact
 from user import *
+from message import *
 import socket
 import threading
 import time
@@ -15,6 +16,9 @@ SUC = "+"
 ERR = "!"
 INP = ">"
 SER = "S"
+
+LOGIN = False
+SIGNUP = False
 
 HOST = '127.0.0.1'      # The server's hostname or IP address
 PORT = 5378             # The port used by the server
@@ -147,6 +151,7 @@ def data_receive(s, host_port):
 
 
 def messenger_function():
+    global SIGNUP, LOGIN
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     cprint(f"Connecting to {HOST}:{PORT}...", INF)
@@ -158,20 +163,41 @@ def messenger_function():
         return
     
     cprint("Connected.", SUC)
+    while True:
+        login_type = cinput("Do you want to login or register? (l/r): ")
+        if login_type == "l":
+            LOGIN = True
+            break
+        elif login_type == "r":
+            SIGNUP = True
+            break
+        else:
+            cprint("Invalid input. Try again.", ERR)
+            continue
     
     user = cinput("Enter your name: ")
-    pwd = cinput("Enter your password: ", pwd=True).encode("utf-8")
-    # cprint(pwd.decode("utf-8"), INF)
-    pwd = bcrypt.hashpw(pwd, bcrypt.gensalt()).decode("utf-8")
-    # cprint(pwd.decode("utf-8"), INF)
-    # time.sleep(2)
+    pwd = cinput("Enter your password: ", pwd=True)
     
-    
-    
-    u = User(user, pwd) # Create a user object
-    print(u.to_json())
-    time.sleep(10)
+    while SIGNUP:
+        if pwd == "": pwd = cinput("Enter your password: ", pwd=True)
+        pwd_check = cinput("Confirm your password: ", pwd=True)
+        if pwd != pwd_check:
+            cprint("Passwords do not match. Try again.", ERR)
+            pwd = ""
+            continue
+        else: 
+            break
+    pwd = bcrypt.hashpw(pwd.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
+    remember = cinput("Do you want to remember your login details? (y/n): ")
+    
+    
+    u = User(user, pwd) 
+    print(u.to_json())
+    message2 = Message(u, "HELLO-FROM")
+    print(message2.to_json())
+
+    
     msg = " "
     hello = "HELLO-FROM " + user + "\n"
     who = "WHO\n"
@@ -179,7 +205,7 @@ def messenger_function():
     enter = True
     name = False
 
-    string_bytes = hello.encode("utf-8")
+    string_bytes = message2.to_json().encode("utf-8")
 
 
     while not name:

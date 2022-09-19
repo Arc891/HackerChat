@@ -1,6 +1,11 @@
 from user import *
+from message import *
+import os
+import time
 import socket
 import threading
+import json
+import string
 
 class BAD_RQST_BODY(Exception):
     def __init__(self):
@@ -12,6 +17,8 @@ class UNKNOWN(Exception):
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+user_chars = string.ascii_letters + string.digits
 
 host = '127.0.0.1'
 port = 5378
@@ -50,23 +57,23 @@ def client_setup(connection, address):
         return
     
     data = connection.recv(4096)
-    decoded_data = data.decode("utf-8")
+    msg_data = json.loads(data.decode("utf-8"))
 
-    username = ''
+    msg = Message(**msg_data)
+    user = User(**msg.sender)
+
+    print(f"Received {msg} from {address}")
+
+    username = user.username
     
-    if decoded_data[:10] == 'HELLO-FROM':
-        for char in decoded_data[11:]:
-            if ((ord(char) > 64 and ord(char) < 91) or   #Capital letters
-                (ord(char) > 96 and ord(char) < 123) or  #Lower case letters
-                (ord(char) > 47 and ord(char) < 58)):    #Numbers
-                username += char 
-            
-            elif char == '\n':
-                break
-            
-            else:
+    if msg.message_type == 'HELLO-FROM':
+        for char in username:
+            if char not in user_chars:
                 error_handler(connection, address, "BAD-RQST-BODY")
                 return
+
+        # if os.path.isfile(f"users/{username}.json"):
+            
 
         if username not in usernames:
             clients.append(connection)
