@@ -1,4 +1,3 @@
-from code import interact
 from hashlib import sha256
 from user import *
 from message import *
@@ -59,7 +58,6 @@ def cprint(msg, pre=INF):
     # print(f"\033[A", end="| > ")
 
 
-
 """
 Custom input function in style of the terminal, 
 taking a 2nd parameter checking if the input is going to be a password,
@@ -84,7 +82,6 @@ def print_logo_middle():
     f.close()
 
 
-
 """
 Prints the welcoming interface when starting the application. 
 """
@@ -103,6 +100,9 @@ def print_interface(clear=False):
     for i in instructions: cprint(i, INF)
     print(line)
 
+
+def new_msg(sender, msg_type, content="", receiver=None):
+    return Message(sender, msg_type, content=content, receiver=receiver).to_json().encode('utf-8')
 
 
 """
@@ -151,7 +151,7 @@ def data_receive(s, host_port):
             cprint(f"Online: {msg.content}", SER)
 
 
-def messenger_function():
+def signin():
     global SIGNUP, LOGIN
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -193,22 +193,13 @@ def messenger_function():
 
     # remember = cinput("Do you want to remember your login details? (y/n): ")
     
-    
     u = User(user, pwd) 
     msg_type = "SIGNUP" if SIGNUP else "LOGIN"
     message2 = Message(u, msg_type)
     print(s)
     print(message2.to_json())
 
-    
-    msg = " "
-    hello = "HELLO-FROM " + user + "\n"
-    who = "WHO\n"
-
-    enter = True
-
     string_bytes = message2.to_json().encode("utf-8")
-
 
     while True:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -229,22 +220,25 @@ def messenger_function():
                 user = input('Username is invalid, please enter another: ')
             else:
                 user = input('Username is taken, please enter another: ')
-            hello = "HELLO-FROM " + user + "\n"
-            string_bytes = Message(User(user, pwd), msg_type)
+            u.username = user
+            string_bytes = new_msg(u, msg_type)
     
+    print_interface(clear=True)
+    messenger_function(s, u)
+
+def messenger_function(s: socket.socket, user: User):
     t = threading.Thread(target=data_receive, args=(s, host_port), daemon=True)
     t.start()
-    msg = " "
-    print_interface(clear=True)
     
-    while msg != "!quit": 
+    while True: 
 
-        if not enter:
-            msg = cinput("")
+        cmd = cinput("")
 
-        enter = False
+        if not cmd:
+            cprint("Invalid input. Try again.", ERR)
+            continue
 
-        if (msg == "!quit"):
+        elif (cmd == "!quit"):
             text_message = "SEND @ Bye! \n"
             string_bytes = text_message.encode("utf-8")
             s.sendall(string_bytes)
@@ -252,17 +246,22 @@ def messenger_function():
             s.close()
             break
 
-        elif (msg == "!who"):
-            string_bytes = who.encode("utf-8")
+        elif (cmd == "!who"):
+            string_bytes = new_msg(user, "WHO")
 
-        elif (msg[0] == "@"):
-            text_message = "SEND " + msg[1:] + " \n"
-            string_bytes = text_message.encode("utf-8")         
+        elif (cmd[0] == "@"):
+            cmd = cmd.split(" ")
+            if len(cmd) < 2:
+                cprint("Invalid input. Try again.", ERR)
+                continue
+            receiver = cmd[0][1:]
+            text_message = cmd[1]
+            string_bytes = new_msg(user, "SEND", text_message, receiver)
             
         s.sendall(string_bytes)
         time.sleep(1/100)
        
-    print(f"Cya later, {user}!")
+    print(f"Cya later, {user.username}!")
     threading._shutdown()
     
     t.join()
@@ -270,7 +269,7 @@ def messenger_function():
 
 def main():
     print_interface()
-    messenger_function()
+    signin()
 
 
 if __name__ == "__main__":

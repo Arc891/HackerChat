@@ -31,9 +31,14 @@ server.listen(100)
 clients = []
 usernames = []
 
-def new_msg(msg_type, content=""):
-    return Message(None, msg_type, content=content).to_json().encode('utf-8')
+def new_msg(msg_type, sender=None, content="", receiver=None):
+    return Message(sender, msg_type, content=content, receiver=receiver).to_json().encode('utf-8')
 
+def switch_status(user, status):
+    user.status = status
+    with open(f"users/{user.username}.json", "w") as f:
+        f.write(user.to_json())
+    return user
 
 def error_handler(connection, address, err_type):
     print(f"Exception {err_type} sent to {address}.")
@@ -43,7 +48,8 @@ def error_handler(connection, address, err_type):
     return
 
 # TODO: Replace clients and usernames for JSON format: update statuses to offline and remove client for next connection
-def disconnect_client(connection): 
+def disconnect_client(connection, user): 
+    user.status = "offline"
     pop_index = 0 - (len(clients) - clients.index(connection))
     clients.pop(pop_index)
     usernames.pop(pop_index)
@@ -90,7 +96,7 @@ def client_setup(connection, address):
             user.save()
             clients.append(connection)
             usernames.append(username)
-            client_thread(connection, address)
+            client_thread(connection, address, user)
 
         # if username not in usernames:
         #     clients.append(connection)
@@ -104,7 +110,7 @@ def client_setup(connection, address):
                 connection.send(new_msg("HELLO"))
                 clients.append(connection)
                 usernames.append(username)
-                client_thread(connection, address)
+                client_thread(connection, address, user)
             else:
                 error_handler(connection, address, "BAD-PASS")
                 return
@@ -118,39 +124,41 @@ def client_setup(connection, address):
         return
     
 
-def client_thread(connection, address):
+def client_thread(connection, address, user):
     print(address, "has started it's thread.")        
     sock_online = threading.Thread(target=check_socket, args=(connection,))
     sock_online.start()
 
+    user = switch_status(user, "online")
+
     while sock_online.is_alive():       
         try:
             data = connection.recv(4096)
+            msg_data = json.loads(data.decode("utf-8"))
+            msg = Message(**msg_data)
 
-            if data == ("WHO\n").encode("utf-8"):                        
+            if msg.message_type == "WHO":                        
                 user_string = ""
+                users = User.get_all_users()
+                for u in users:
+                    if u.status == "online":
+                        if u.username == user.username:
+                            user_string += f"{u.username} (you), "
+                        else: user_string += f"{u.username}, "
+                
+                connection.send(new_msg("WHO-OK", content=user_string[:-2]))
+                # for user in range(len(usernames)):
+                #     if (user != len(usernames) - 1):
+                #         user_string += usernames[user] + ", "
+                #     else:
+                #         user_string += usernames[user]
 
-                for user in range(len(usernames)):
-                    if (user != len(usernames) - 1):
-                        user_string += usernames[user] + ", "
-                    else:
-                        user_string += usernames[user]
-
-                connection.send(new_msg("WHO-OK"))
+                # connection.send(new_msg("WHO-OK"))
                 # connection.send(("WHO-OK " + user_string + "\n").encode("utf-8"))
             
-            elif data[:5] == ("SEND ").encode("utf-8"):
-                message = data[5:].decode("utf-8")
-                send_message = ""
-
-                split_message = message.split()
-                receiver = split_message[0]
-                
-                if len(split_message) == 1:
-                    raise BAD_RQST_BODY()
-                else:
-                    for x in split_message[1:]:
-                        send_message += x + " "
+            elif msg.message_type == "SEND":
+                send_message = msg.content
+                receiver = msg.receiver
                             
                 if receiver not in usernames:
                     raise UNKNOWN()
@@ -160,11 +168,11 @@ def client_thread(connection, address):
                     
                     connection.send(new_msg("SEND-OK"))
                     # connection.send(("SEND-OK\n").encode("utf-8"))
-                    clients[con_index].send(new_msg("DELIVERY", send_message))
+                    clients[con_index].send(new_msg("DELIVERY", usernames[sender_index], send_message, usernames[con_index]))
                     # clients[con_index].send(("DELIVERY " + usernames[sender_index] + " " +  send_message + "\n").encode("utf-8"))
                     
             elif data == b'\n':
-                disconnect_client(connection)
+                disconnect_client(connection, user)
                 print("Client disconnected")
                 return
 
@@ -182,11 +190,11 @@ def client_thread(connection, address):
             # connection.send(('BAD-RQST-BODY\n').encode('utf-8'))
 
         except ConnectionResetError:
-            disconnect_client(connection)
+            disconnect_client(connection, user)
             print("Client disconnected forcibly")
             return
     
-    disconnect_client(connection)
+    disconnect_client(connection, user)
     print("Client disconnected")
     return
 
