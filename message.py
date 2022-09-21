@@ -18,6 +18,7 @@ class Message(object):
 
 """
 Message format:
+{
     "message": {
         "sender": {
             "username": "username",
@@ -29,4 +30,17 @@ Message format:
         "receiver": "username", -- optional (default to None = server)
         "content": "<message content>"
     }
+}
+
+
+class Decoder(json.JSONDecoder):
+    def __init__(self, *args, **kwargs):
+        json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
+    
+    def object_hook(self, dct):
+        if 'sender' in dct:
+            dct['sender'] = User(**dct['sender'])
+        if 'receiver' in dct:
+            dct['receiver'] = User(**dct['receiver'])
+        return dct
 """

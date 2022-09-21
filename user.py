@@ -1,12 +1,14 @@
 import json
 import os
+from typing import Literal
 
 class User(object):
-    def __init__(self, username, password: str = "", status='offline', address=("127.0.0.1", 5378)):
+    def __init__(self, username, password: str = "", status: Literal['offline', 'online']='offline', address=("127.0.0.1", 5378), fd = 0):
         self.username = username
         self.password = password
-        self.address = address
         self.status = status
+        self.address = address
+        self.fd = fd
     
     def __repr__(self) -> str:
         return self.to_json()
@@ -23,6 +25,20 @@ class User(object):
         f.close()
         return user.password == password
 
+    def set_status(self, status):
+        self.status = status
+        self.save()
+        return self
+
+    def set_address(self, address):
+        self.address = address
+        self.save()
+        return self
+
+    def set_fd(self, fd):
+        self.fd = fd
+        self.save()
+        return self
 
     def to_json(self):
         return json.dumps(self, default=lambda o: o.__dict__, 

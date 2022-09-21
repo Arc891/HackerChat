@@ -129,7 +129,7 @@ def data_receive(s, host_port):
         print(decoded_data)
         msg = Message(**json.loads(decoded_data))
 
-        if msg.message_type == UNKNOWN:
+        if msg.message_type == "UNKNOWN":
             cprint("Data is unknown", ERR)
             time.sleep(0.1)
             try:
@@ -138,7 +138,7 @@ def data_receive(s, host_port):
                 break
             cprint(decoded_data[:len(decoded_data)-1], SER)
             break
-        elif msg.message_type == SEND_OK:
+        elif msg.message_type == "SEND-OK":
             # print("Data is send ok")
             cprint(data, SER)
             break
@@ -147,23 +147,15 @@ def data_receive(s, host_port):
             
             print(msg.content)
             cprint("\n", INP)
-        else:
+        elif msg.message_type == "WHO-OK":
             cprint(f"Online: {msg.content}", SER)
+        else:
+            cprint(f"Random data received: {msg.content}", SER)
 
 
 def signin():
     global SIGNUP, LOGIN
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    cprint(f"Connecting to {HOST}:{PORT}...", INF)
-
-    try: 
-        s.connect((HOST, PORT))
-    except ConnectionRefusedError:
-        cprint(f"Connection to {HOST}:{PORT} failed. Server is most likely offline.", ERR)
-        return
     
-    cprint("Connected.", SUC)
     while True:
         login_type = cinput("Do you want to login or register? (l/r): ")
         if login_type == "l":
@@ -196,32 +188,48 @@ def signin():
     u = User(user, pwd) 
     msg_type = "SIGNUP" if SIGNUP else "LOGIN"
     message2 = Message(u, msg_type)
-    print(s)
-    print(message2.to_json())
+    # print(s)
+    # print(message2.to_json())
 
     string_bytes = message2.to_json().encode("utf-8")
 
     while True:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(host_port)
+
+        cprint(f"Connecting to {HOST}:{PORT}...", INF)
+
+        try: 
+            s.connect((HOST, PORT))
+        except ConnectionRefusedError:
+            cprint(f"Connection to {HOST}:{PORT} failed. Server is most likely offline.", ERR)
+            return
+        
+        cprint("Connected.", SUC)
+
         s.sendall(string_bytes)
         data = s.recv(4096)
         decoded_data = data.decode("utf-8")
-        msg = Message(**json.loads(decoded_data))
+        # x = json.loads(decoded_data, object_hook=lambda o: Message(**o))
+        # print(f"X:{x}")
+        # time.sleep(3)
+        try:
+            msg = Message(**json.loads(decoded_data))
+        except json.decoder.JSONDecodeError:
+            pass
+        finally:
+            if msg.message_type == "HELLO":
+                string_bytes = b''
+                break
 
-        if msg.message_type == "HELLO":
-            string_bytes = b''
-            break
-
-        else:
-            print(msg)
-            s.close()
-            if msg.message_type == "BAD-RQST-BODY":
-                user = input('Username is invalid, please enter another: ')
             else:
-                user = input('Username is taken, please enter another: ')
-            u.username = user
-            string_bytes = new_msg(u, msg_type)
+                print(msg)
+                s.close()
+                if msg.message_type == "BAD-RQST-BODY":
+                    user = input('Username is invalid, please enter another: ')
+                else:
+                    user = input('Username is taken, please enter another: ')
+                u.username = user
+                string_bytes = new_msg(u, msg_type)
     
     print_interface(clear=True)
     messenger_function(s, u)
@@ -239,8 +247,7 @@ def messenger_function(s: socket.socket, user: User):
             continue
 
         elif (cmd == "!quit"):
-            text_message = "SEND @ Bye! \n"
-            string_bytes = text_message.encode("utf-8")
+            string_bytes = new_msg(user, "LOGOUT")
             s.sendall(string_bytes)
             time.sleep(0.1)
             s.close()
@@ -263,8 +270,6 @@ def messenger_function(s: socket.socket, user: User):
        
     print(f"Cya later, {user.username}!")
     threading._shutdown()
-    
-    t.join()
     exit()
 
 def main():

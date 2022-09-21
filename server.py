@@ -34,22 +34,14 @@ usernames = []
 def new_msg(msg_type, sender=None, content="", receiver=None):
     return Message(sender, msg_type, content=content, receiver=receiver).to_json().encode('utf-8')
 
-def switch_status(user, status):
-    user.status = status
-    with open(f"users/{user.username}.json", "w") as f:
-        f.write(user.to_json())
-    return user
-
 def error_handler(connection, address, err_type):
     print(f"Exception {err_type} sent to {address}.")
-    err_msg = Message(None, err_type)
     connection.send(new_msg(err_type))
-    # connection.send((f"{err_type}\n").encode('utf-8'))
     return
 
 # TODO: Replace clients and usernames for JSON format: update statuses to offline and remove client for next connection
 def disconnect_client(connection, user): 
-    user.status = "offline"
+    user = user.set_status("offline").set_address(None).set_fd(0)
     pop_index = 0 - (len(clients) - clients.index(connection))
     clients.pop(pop_index)
     usernames.pop(pop_index)
@@ -66,16 +58,18 @@ def check_socket(connection):
 def client_setup(connection, address):
     if len(clients) >= 100:
         connection.send(new_msg("BUSY"))
-        # connection.send(("BUSY\n").encode('utf-8'))
         return
     
     data = connection.recv(4096)
+    print(f"Data received from {address}: {data.decode('utf-8')}")
+    time.sleep(0.5)
     msg_data = json.loads(data.decode("utf-8"))
+    # print(f"Message data: {msg_data}")
 
     msg = Message(**msg_data)
     user = User(**msg.sender)
 
-    print(f"{msg.message_type}, {user.username}, {user.password}")
+    print(f"[+] {msg.message_type}, {user.username}")
     # print(f"Received {msg} from {address}")
 
     username = user.username
@@ -92,7 +86,6 @@ def client_setup(connection, address):
             return
         else:
             connection.send(new_msg("HELLO"))
-            # connection.send(("HELLO " + username + "\n").encode("utf-8"))
             user.save()
             clients.append(connection)
             usernames.append(username)
@@ -125,11 +118,13 @@ def client_setup(connection, address):
     
 
 def client_thread(connection, address, user):
-    print(address, "has started it's thread.")        
+    print(address, "has started it's thread.")    
+    time.sleep(0.5)
     sock_online = threading.Thread(target=check_socket, args=(connection,))
     sock_online.start()
 
-    user = switch_status(user, "online")
+    print(f"User {user.username} has logged in from {address}.")
+    user = user.set_status("online").set_address(address).set_fd(connection.fileno())
 
     while sock_online.is_alive():       
         try:
@@ -147,14 +142,7 @@ def client_thread(connection, address, user):
                         else: user_string += f"{u.username}, "
                 
                 connection.send(new_msg("WHO-OK", content=user_string[:-2]))
-                # for user in range(len(usernames)):
-                #     if (user != len(usernames) - 1):
-                #         user_string += usernames[user] + ", "
-                #     else:
-                #         user_string += usernames[user]
-
-                # connection.send(new_msg("WHO-OK"))
-                # connection.send(("WHO-OK " + user_string + "\n").encode("utf-8"))
+                print(f"Sent WHO-OK {user_string[:-2]} to {address}.")
             
             elif msg.message_type == "SEND":
                 send_message = msg.content
@@ -167,11 +155,10 @@ def client_thread(connection, address, user):
                     sender_index = clients.index(connection)
                     
                     connection.send(new_msg("SEND-OK"))
-                    # connection.send(("SEND-OK\n").encode("utf-8"))
                     clients[con_index].send(new_msg("DELIVERY", usernames[sender_index], send_message, usernames[con_index]))
                     # clients[con_index].send(("DELIVERY " + usernames[sender_index] + " " +  send_message + "\n").encode("utf-8"))
                     
-            elif data == b'\n':
+            elif msg.message_type == "LOGOUT":
                 disconnect_client(connection, user)
                 print("Client disconnected")
                 return
@@ -202,7 +189,7 @@ def client_thread(connection, address, user):
 while True:
     connected, address = server.accept()
 
-    print(address, "has connected.")
+    print(connected, address, "has connected.")
 
     t = threading.Thread(target=client_setup, args=(connected, address))
     t.start()
