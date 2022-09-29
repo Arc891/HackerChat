@@ -1,5 +1,12 @@
 # HackerChat
-
+```bash
+$ python3 hackerchat.py
+>   __  __           __             ________          __ 
+   / / / /___ ______/ /_____  _____/ ____/ /_  ____ _/ /_
+  / /_/ / __ `/ ___/ //_/ _ \/ ___/ /   / __ \/ __ `/ __/
+ / __  / /_/ / /__/ ,< /  __/ /  / /___/ / / / /_/ / /_  
+/_/ /_/\__,_/\___/_/|_|\___/_/   \____/_/ /_/\__,_/\__/  
+```
 ## What is HackerChat?
 
 HackerChat is meant as a personal use CLI chat service, in which you can send small text messages from one client to another. The functionality is still basic, but is looking to expand with seperated chat rooms, chats being stored and dynamic interface.
