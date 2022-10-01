@@ -149,7 +149,7 @@ Screen 4:
 
 ### Capabilities:
 Screen 1:
-- [ ]  Display name -> perhaps ASCII art ? (JavaScript yank output from [here](https://patorjk.com/software/taag/#p=display&f=Slant&t=), could use only first name/word if it's too long)
+- [ ]  Display name -> perhaps ASCII art ? (JavaScript yank output from [here](https://patorjk.com/software/taag/#p=display&f=Slant&t=) or with [API](https://textart.io/api/figlet#), could use only first name/word if it's too long)
 - [ ]  Stationary, needs to be 1/6th - 1/10th of screen height (depending on the ascii art)
 - [ ]  Show online status and perhaps keep track of last seen times (general or specific?) -- personal chats only
 - [ ]  Show group info (members, group name, group description, group icon?) -- group chats only
