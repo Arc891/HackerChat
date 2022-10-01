@@ -9,12 +9,12 @@
 |                                                               |
 | [*] Instructions...                                           |
 |---------------------------------------------------------------|
-| {2}                                                           |
 | [>] Login/register? (l/r): r                                  |
 | [>] Enter your name: Arc891                                   |
 | [>] Enter your password: ...                                  |
 | [>] Confirm your password: ...                                |
 | [>] Do you want to remember your login details? (y/n):        |
+|                                                               |
 |                                                               |
 |                                                               |
 |                                                               |
@@ -32,11 +32,8 @@
 ### Capabilities:
 Screen 1:
 - [ ]  Dynamic title art
-- [ ]  Stationary, needs to be 1/6th of screen height
+- [ ]  Stationary, full screen, print instructions and seperating line
 - [ ]  Print welcome and instructions
-
-Screen 2:
-- [ ]  Stationary
 - [ ]  Inputs done in line
 
 
