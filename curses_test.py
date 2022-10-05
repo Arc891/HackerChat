@@ -1,9 +1,11 @@
 import curses
 import os
+import socket
 import threading
 import time
-import user
-import message 
+from user import *
+from message import *
+from hashlib import sha256
 from curses import wrapper
 
 WAI = "."
@@ -13,17 +15,39 @@ ERR = "!"
 INP = ">"
 SER = "S"
 
-LOGIN = False
 SIGNUP = False
 
+LINES = 0
+
+HOST = '127.0.0.1'      # The server's hostname or IP address
+PORT = 5378             # The port used by the server
+host_port = (HOST, PORT)
+
+UNKNOWN = "UNKNOWN\n".encode("utf-8")
+SEND_OK = "SEND-OK\n".encode("utf-8")
+DELIVERY = "DELIVERY".encode("utf-8")
+
+# Failed implementation of a counter decorator for LINES on cprint and cinput
+# def increment(val):
+#     def increment_lines(func):
+#         global LINES
+#         def helper(*args, **kwargs):
+#             global LINES
+#             res = func(*args, **kwargs)
+#             LINES = val + 1
+#             return res
+#         return helper
+#     return increment_lines
 
 """
 Custom print function in style of the terminal onto a specific screen, 
 taking a 3rd parameter which defines the icon between the square brackets. 
 """
-def cprint(screen, text, pre=INF, x=0, y=0):
+def cprint(screen, x=0, y=0, text="", pre=INF):
+    global LINES
     screen.addstr(y, x, f"[{pre}] {text}")
     screen.refresh()
+    if y == LINES: LINES += 1
     return
 
 
@@ -32,12 +56,21 @@ Custom input function in style of the terminal in a specific screen,
 taking a 3rd parameter checking if the input is going to be a password,
 if so, the input will be hidden while typed.
 """
-def cinput(screen, msg, x=0, y=0, pwd=False):
+def cinput(screen, x=0, y=0, text="", pwd=False):
+    global LINES
     if pwd: curses.noecho()
-    cprint(screen, msg, INP, x, y)
+    cprint(screen, x, y, text, INP)
     inp = screen.getstr()
     curses.echo()
+    if y == LINES: LINES += 1
     return inp.decode('utf-8')
+
+"""
+Quick constructor for new messages to send to the server
+"""
+def new_msg(sender, msg_type, content="", receiver=None):
+    return Message(sender, msg_type, content=content, receiver=receiver).to_json().encode('utf-8')
+
 
 """
 Will be ran by a thread keeping check of the terminal size
@@ -111,52 +144,95 @@ def setup_login_screen(stdscr) -> int:
     return curr_lines+1
 
 
-def run_login(stdscr, lines):
-    global LOGIN, SIGNUP, screen_inner
+def run_login():
+    global SIGNUP, LINES, screen_inner
     
     while True:
-        login_type = cinput(screen_inner, "Do you want to login or register? (l/r): ", 0, lines)
-        lines += 1
+        login_type = cinput(screen_inner, 0, LINES, "Do you want to login or register? (l/r): ")
         if login_type == "l":
-            LOGIN = True
+            SIGNUP = False
             break
         elif login_type == "r":
             SIGNUP = True
             break
         else:
-            cprint(screen_inner, "Invalid input. Try again.", ERR)
+            cprint(screen_inner, 0, LINES, "Invalid input. Try again.", ERR)
             continue
     
-    user = cinput(screen_inner, "Enter your name: ", 0, lines)
-    lines += 1
-    pwd = cinput(screen_inner, "Enter your password: ", 0, lines, pwd=True)
-    lines += 1
-    
+    user = cinput(screen_inner, 0, LINES, "Enter your name: ")
+    pwd = cinput(screen_inner, 0, LINES, "Enter your password: ", pwd=True)
+
     while SIGNUP:
         if pwd == "": 
-            pwd = cinput(screen_inner, "Enter your password: ", 0, lines, pwd=True)
-            lines += 1
-        pwd_check = cinput(screen_inner, "Confirm your password: ", 0, lines, pwd=True)
-        lines += 1
+            pwd = cinput(screen_inner, 0, LINES, "Enter your password: ", pwd=True)
+        
+        pwd_check = cinput(screen_inner, 0, LINES, "Confirm your password: ", pwd=True)
+        
         if pwd != pwd_check:
-            cprint(screen_inner, "Passwords do not match. Try again.", ERR, 0, lines)
-            lines += 1
+            cprint(screen_inner, 0, LINES, "Passwords do not match. Try again.", ERR)
             pwd = ""
             continue
         else: 
             break
 
-    # pwd = sha256(pwd.encode("utf-8")).hexdigest()
+    pwd = sha256(pwd.encode("utf-8")).hexdigest()
 
-    # # remember = cinput("Do you want to remember your login details? (y/n): ")
+    # remember = cinput("Do you want to remember your login details? (y/n): ")
     
-    # u = User(user, pwd) 
-    # msg_type = "SIGNUP" if SIGNUP else "LOGIN"
-    # message2 = Message(u, msg_type)
-    # # print(s)
-    # # print(message2.to_json())
+    u = User(user, pwd) 
+    msg_type = "SIGNUP" if SIGNUP else "LOGIN"
+    message2 = Message(u, msg_type)
+    # print(s)
+    # print(message2.to_json())
 
-    # string_bytes = message2.to_json().encode("utf-8")
+    string_bytes = message2.to_json().encode("utf-8")
+
+    while True:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        LINES += 1
+        cprint(screen_inner, 0, LINES, f"Connecting to {HOST}:{PORT}...", INF)
+
+        try: 
+            s.connect((HOST, PORT))
+        except ConnectionRefusedError:
+            cprint(screen_inner, 0, LINES, f"Connection to {HOST}:{PORT} failed. Server is most likely offline.", ERR)
+            return
+        
+        cprint(screen_inner, 0, LINES, "Connected.", SUC)
+
+        s.sendall(string_bytes)
+        data = s.recv(4096)
+        decoded_data = data.decode("utf-8")
+
+        try:
+            msg = Message(**json.loads(decoded_data))
+        except json.decoder.JSONDecodeError:
+            pass
+        finally:
+            if msg.message_type == "HELLO":
+                string_bytes = b''
+                break
+
+            else:
+                s.close()
+                if msg.message_type == "BAD-PASS":
+                    pwd = cinput(screen_inner, 0, LINES, 'Password is incorrect, try again: ', pwd=True)
+                    u.password = sha256(pwd.encode("utf-8")).hexdigest()
+                    string_bytes = new_msg(u, msg_type)
+                    continue
+
+                err_msg = ""
+                if msg.message_type == "BAD-RQST-BODY": err_msg = "invalid"
+                elif msg.message_type == "UNKNOWN":     err_msg = "not known"
+                else:                                   err_msg = "taken"
+                user = cinput(screen_inner, 0, LINES, f'Username is {err_msg}, please enter another: ')
+                u.username = user
+                string_bytes = new_msg(u, msg_type)
+    
+    LINES += 1
+    cprint(screen_inner, 0, LINES, f"Welcome {user}!", SUC)
+    # print home screen and initiate respective functions
 
 
 """
@@ -204,11 +280,11 @@ def resize_and_setup(stdscr):
 Main function
 """
 def main(stdscr):
-    global HEIGHT, WIDTH, screen_inner, input_outer, input_inner    
+    global HEIGHT, WIDTH, LINES, screen_inner, input_outer, input_inner    
     create_screens(stdscr)
     # setup_screens(stdscr)
-    lines = setup_login_screen(stdscr)
-    run_login(stdscr, lines)
+    LINES = setup_login_screen(stdscr)
+    run_login()
     # t = threading.Thread(target=check_screen_size, args=(stdscr,), daemon=True)
     # t.start()
     stdscr.getch()
