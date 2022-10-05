@@ -1,5 +1,5 @@
-from user import *
-from message import *
+from Classes.user import *
+from Classes.message import *
 import os
 import time
 import socket

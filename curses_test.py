@@ -3,8 +3,8 @@ import os
 import socket
 import threading
 import time
-from user import *
-from message import *
+from Classes.user import *
+from Classes.message import *
 from hashlib import sha256
 from curses import wrapper
 

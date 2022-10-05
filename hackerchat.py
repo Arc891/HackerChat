@@ -1,6 +1,6 @@
 from hashlib import sha256
-from user import *
-from message import *
+from Classes.user import *
+from Classes.message import *
 import socket
 import threading
 import time
