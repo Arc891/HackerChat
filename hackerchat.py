@@ -7,8 +7,6 @@ import time
 import os
 import getpass
 
-from psutil import boot_time
-
 WAI = "."
 INF = "*"
 SUC = "+"
@@ -224,10 +222,17 @@ def signin():
             else:
                 print(msg)
                 s.close()
-                if msg.message_type == "BAD-RQST-BODY":
-                    user = input('Username is invalid, please enter another: ')
-                else:
-                    user = input('Username is taken, please enter another: ')
+                if msg.message_type == "BAD-PASS":
+                    pwd = cinput('Password is incorrect, try again: ', pwd=True)
+                    u.password = sha256(pwd.encode("utf-8")).hexdigest()
+                    string_bytes = new_msg(u, msg_type)
+                    continue
+
+                err_msg = ""
+                if msg.message_type == "BAD-RQST-BODY": err_msg = "invalid"
+                elif msg.message_type == "UNKNOWN":     err_msg = "not known"
+                else:                                   err_msg = "taken"
+                user = cinput(f'Username is {err_msg}, please enter another: ')
                 u.username = user
                 string_bytes = new_msg(u, msg_type)
     
