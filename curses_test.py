@@ -132,7 +132,7 @@ def setup_login_screen(stdscr) -> int:
     
     curr_lines = 0
 
-    with open('logo-full-width.txt', 'r') as f:
+    with open('Logos/logo-full-width.txt', 'r') as f:
         for i, line in enumerate(f):
             screen_inner.addstr(i, (WIDTH-len(line))//2-1, line[:-1])
             curr_lines += 1 
@@ -249,7 +249,7 @@ def setup_screens(stdscr):
     stdscr.border("|", "|", "-", "-", "+", "+", "+", "+")
     input_outer.border("|", "|", "-", "-", "+", "+", "+", "+")
     
-    with open('logo-full-width.txt', 'r') as f:
+    with open('Logos/logo-full-width.txt', 'r') as f:
         for i, line in enumerate(f):
             screen_inner.addstr(i, (WIDTH-len(line))//2-1, line[:-1])
 

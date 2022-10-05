@@ -24,8 +24,8 @@ host_port = (HOST, PORT)
 T_WIDTH = os.get_terminal_size().columns
 T_HEIGHT = os.get_terminal_size().lines
 
-LOGO_FULL_WIDTH = 'logo-full-width.txt' # 57 chars wide
-LOGO_HALF_WIDTH = 'logo-half-width.txt' # 35 chars wide
+LOGO_FULL_WIDTH = 'Logos/logo-full-width.txt' # 57 chars wide
+LOGO_HALF_WIDTH = 'Logos/logo-half-width.txt' # 35 chars wide
 
 UNKNOWN = "UNKNOWN\n".encode("utf-8")
 SEND_OK = "SEND-OK\n".encode("utf-8")
