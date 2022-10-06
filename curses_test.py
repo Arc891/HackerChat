@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import curses
 import os
 import socket
@@ -136,11 +138,36 @@ def setup_login_screen(stdscr):
     screen_inner.refresh()
     return
 
+def create_credentials_file(user: User, remember="n"):
+    with open("config/credentials.txt", "w") as f:
+        f.write(f"username={user.name}\n")
+        f.write(f"password={user.password}\n")
+        f.write(f"remember={remember}\n")
+    f.close()
+
+def return_credentials_file():
+    if os.path.isfile("config/credentials.txt"):
+        vals = []
+        with open("config/credentials.txt", "r") as f:
+            for _ in range(3):
+                vals.append(f.readline().strip().split("=")[1])
+        f.close()
+        if vals[2] == "y":
+            return User(vals[0], vals[1]) 
+        elif vals[2] == "n":
+            return None
+        elif vals[2] == "N":
+            return False
+    return None
+
 def get_login_credentials():
     """Gather login credentials and return them in a Message to run with run_login"""
 
     global SIGNUP, LINES, screen_inner
     
+    creds = return_credentials_file()
+    if creds: return Message(creds, "LOGIN")
+
     while True:
         login_type = cinput(screen_inner, 0, LINES, "Do you want to login or register? (l/r): ")
         if login_type == "l":
@@ -171,7 +198,9 @@ def get_login_credentials():
 
     pwd = sha256(pwd.encode("utf-8")).hexdigest()
 
-    # remember = cinput("Do you want to remember your login details? (y/n): ")
+    if creds == None:
+        remember = cinput(screen_inner, 0, LINES, "Do you want to remember your login details? ([y]es/[n]o/[N]ever): ")
+        create_credentials_file(User(user, pwd), remember)
 
     msg_type = "SIGNUP" if SIGNUP else "LOGIN"
     return Message(User(user, pwd), msg_type)
@@ -190,8 +219,8 @@ def run_login(msg: Message):
 
         LINES += 1
         cprint(screen_inner, 0, LINES, f"Connecting to {HOST}:{PORT}...", INF)
-
-        try: 
+        time.sleep(0.1)
+        try:    
             s.connect((HOST, PORT))
         except ConnectionRefusedError:
             cprint(screen_inner, 0, LINES, f"Connection to {HOST}:{PORT} failed. Server is most likely offline.", ERR)
@@ -230,18 +259,19 @@ def run_login(msg: Message):
     
     LINES += 1
     cprint(screen_inner, 0, LINES, f"Welcome {user.name}!", SUC)
+    time.sleep(1)
     # print home screen and initiate respective functions
     return True
-
-
-def run_main():
-    pass
 
 
 def setup_main_screen(stdscr):
     """Sets up screens by clearing and adding borders etc"""
 
     global HEIGHT, WIDTH, LINES, screen_inner, input_outer, input_inner
+
+    instructions = ['Type !quit to exit.', 
+                    'Type @username to a specific chat.',
+                    'Type !help to see all available commands.'] 
 
     stdscr.clear()
     screen_inner.clear()
@@ -257,6 +287,12 @@ def setup_main_screen(stdscr):
         for i, line in enumerate(f):
             screen_inner.addstr(i, (WIDTH-len(line))//2-1, line[:-1], curses.A_BOLD)
             LINES += 1
+        f.close()
+    
+    for line in instructions:
+        screen_inner.addstr(LINES, (WIDTH-len(line))//2-1, line, curses.A_BOLD)
+        LINES += 1
+
 
     screen_inner.addstr(LINES,0, "-"*(WIDTH-5))
     LINES += 1
@@ -266,6 +302,11 @@ def setup_main_screen(stdscr):
     input_outer.refresh()
     input_inner.refresh()  
     return
+
+
+def run_main():
+    pass
+
 
 
 def resize_and_setup(stdscr):
