@@ -3,8 +3,8 @@ import os
 from typing import Literal
 
 class User(object):
-    def __init__(self, username, password: str = "", status: Literal['offline', 'online']='offline', address=("127.0.0.1", 5378), fd = 0):
-        self.username = username
+    def __init__(self, name, password: str = "", status: Literal['offline', 'online']='offline', address=("127.0.0.1", 5378), fd = 0):
+        self.name = name
         self.password = password
         self.status = status
         self.address = address
@@ -14,13 +14,13 @@ class User(object):
         return self.to_json()
 
     def save(self):
-        with open(f"users/{self.username}.json", "w") as f:
+        with open(f"users/{self.name}.json", "w") as f:
             f.write(self.to_json())
         f.close()
         return True
 
     def verify_login(self, password):
-        with open(f"users/{self.username}.json", "r") as f:
+        with open(f"users/{self.name}.json", "r") as f:
             user = User(**json.loads(f.read()))
         f.close()
         return user.password == password

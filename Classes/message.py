@@ -1,5 +1,5 @@
 import json
-from user import *
+from Classes.user import *
 
 class Message(object):
     def __init__(self, sender: User, message_type: str, content: str = "", receiver: User = None):

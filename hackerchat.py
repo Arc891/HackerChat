@@ -233,7 +233,7 @@ def signin():
                 elif msg.message_type == "UNKNOWN":     err_msg = "not known"
                 else:                                   err_msg = "taken"
                 user = cinput(f'Username is {err_msg}, please enter another: ')
-                u.username = user
+                u.name = user
                 string_bytes = new_msg(u, msg_type)
     
     print_interface(clear=True)
@@ -273,7 +273,7 @@ def messenger_function(s: socket.socket, user: User):
         s.sendall(string_bytes)
         time.sleep(1/100)
        
-    print(f"Cya later, {user.username}!")
+    print(f"Cya later, {user.name}!")
     threading._shutdown()
     exit()
 

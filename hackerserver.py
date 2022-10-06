@@ -69,10 +69,10 @@ def client_setup(connection, address):
     msg = Message(**msg_data)
     user = User(**msg.sender)
 
-    print(f"[+] {msg.message_type}, {user.username}")
+    print(f"[+] {msg.message_type}, {user.name}")
     # print(f"Received {msg} from {address}")
 
-    username = user.username
+    username = user.name
     
     if msg.message_type == "SIGNUP":
         print("New user signing up.")
@@ -123,7 +123,7 @@ def client_thread(connection, address, user):
     sock_online = threading.Thread(target=check_socket, args=(connection,))
     sock_online.start()
 
-    print(f"User {user.username} has logged in from {address}.")
+    print(f"User {user.name} has logged in from {address}.")
     user = user.set_status("online").set_address(address).set_fd(connection.fileno())
 
     while sock_online.is_alive():       
@@ -137,9 +137,9 @@ def client_thread(connection, address, user):
                 users = User.get_all_users()
                 for u in users:
                     if u.status == "online":
-                        if u.username == user.username:
-                            user_string += f"{u.username} (you), "
-                        else: user_string += f"{u.username}, "
+                        if u.name == user.name:
+                            user_string += f"{u.name} (you), "
+                        else: user_string += f"{u.name}, "
                 
                 connection.send(new_msg("WHO-OK", content=user_string[:-2]))
                 print(f"Sent WHO-OK {user_string[:-2]} to {address}.")
