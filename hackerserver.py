@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from Classes.user import *
 from Classes.message import *
 import os

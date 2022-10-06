@@ -32,13 +32,13 @@
 ### Capabilities:
 Screen 1:
 - [ ]  Dynamic title art
-- [ ]  Stationary, full screen, print instructions and seperating line
-- [ ]  Print welcome and instructions
-- [ ]  Inputs done in line
+- [x]  Stationary, full screen, print instructions and seperating line
+- [x]  Print welcome and instructions
+- [x]  Inputs done in line
 
 
 ### TODO:
-- [ ]  Make sure printing inputs works and looks good
+- [x]  Make sure printing inputs works and looks good
 - [ ]  Add remember login details
 
 
