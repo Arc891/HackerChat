@@ -13,6 +13,12 @@ class User(object):
     def __repr__(self) -> str:
         return self.to_json()
 
+    def load(self):
+        with open(f"users/{self.name}.json", "r") as f:
+            user = User(**json.loads(f.read()))
+        f.close()
+        return user
+
     def save(self):
         with open(f"users/{self.name}.json", "w") as f:
             f.write(self.to_json())
