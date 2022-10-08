@@ -98,8 +98,9 @@ def print_interface(clear=False):
     print(line)
 
 
-def new_msg(sender, msg_type, content="", receiver=None):
-    return Message(sender, msg_type, content=content, receiver=receiver).to_json().encode('utf-8')
+def new_msg(sender: User, msg_type: str, content: str = "", receiver: User = None):
+    """Quick constructor for new messages to sent to the server"""
+    return Message(sender, msg_type, content, receiver).to_json().encode('utf-8')
 
 
 def dynamic_rescaler():
@@ -249,17 +250,17 @@ def messenger_function(s: socket.socket, user: User):
             cprint("Invalid input. Try again.", ERR)
             continue
 
-        elif (cmd == "!quit"):
+        if cmd == "!quit":
             string_bytes = new_msg(user, "LOGOUT")
             s.sendall(string_bytes)
             time.sleep(0.1)
             s.close()
             break
 
-        elif (cmd == "!who"):
+        elif cmd == "!who":
             string_bytes = new_msg(user, "WHO")
 
-        elif (cmd[0] == "@"):
+        elif cmd[0] == "@":
             cmd = cmd.split(" ")
             if len(cmd) < 2:
                 cprint("Invalid input. Try again.", ERR)
