@@ -93,12 +93,6 @@ def client_setup(connection, address):
             usernames.append(username)
             client_thread(connection, address, user)
 
-        # if username not in usernames:
-        #     clients.append(connection)
-        #     usernames.append(username)
-        
-        # else:
-
     elif msg.message_type == "LOGIN":
         if os.path.isfile(f"users/{username}.json"):
             if user.verify_login(user.password):

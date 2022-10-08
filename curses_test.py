@@ -264,7 +264,7 @@ def run_login(msg: Message):
     return True
 
 
-def setup_main_screen(stdscr):
+def setup_home_screen(stdscr):
     """Sets up screens by clearing and adding borders etc"""
 
     global HEIGHT, WIDTH, LINES, screen_inner, input_outer, input_inner
@@ -304,7 +304,9 @@ def setup_main_screen(stdscr):
     return
 
 
-def run_main():
+def run_home():
+    """Runs the main screen of the chat application"""
+
     pass
 
 
@@ -318,7 +320,7 @@ def resize_and_setup(stdscr):
     input_outer.resize(OI_HEIGHT, OI_WIDTH)
     input_inner.resize(II_HEIGHT, II_WIDTH)
 
-    setup_main_screen(stdscr)
+    setup_home_screen(stdscr)
     return
 
 
@@ -330,8 +332,8 @@ def main(stdscr):
     setup_login_screen(stdscr)
     login = get_login_credentials()
     run_login(login)
-    setup_main_screen(stdscr)
-    run_main()
+    setup_home_screen(stdscr)
+    run_home()
     # t = threading.Thread(target=check_screen_size, args=(stdscr,), daemon=True)
     # t.start()
     stdscr.getch()

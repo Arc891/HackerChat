@@ -33,46 +33,44 @@ UNKNOWN = "UNKNOWN\n".encode("utf-8")
 SEND_OK = "SEND-OK\n".encode("utf-8")
 DELIVERY = "DELIVERY".encode("utf-8")
 
-"""
-Prints an empty row and places the cursor at the start of the line to overwrite it.
-"""
 def print_empty_row():
+    """Prints an empty row and places the cursor at the start of the line to overwrite it."""
+
     global T_WIDTH
     print(f"| {'':^{T_WIDTH-4}} |")
     print(f"\033[A", end="| ")
 
 
 def print_line():
+    """Prints a dashed line to the terminal."""
+
     global T_WIDTH
     print("-" * T_WIDTH)
 
 
-""" 
-Custom print function in style of the terminal, 
-taking a 2nd parameter which defines the icon between the square brackets. 
-"""
 def cprint(msg, pre=INF):
+    """Custom print function in style of the terminal, 
+    taking a 2nd parameter which defines the icon between the square brackets."""
+
     global T_WIDTH
     print_empty_row()
     print(f"[{pre}] {msg:<{T_WIDTH-8}} |")
     # print(f"\033[A", end="| > ")
 
 
-"""
-Custom input function in style of the terminal, 
-taking a 2nd parameter checking if the input is going to be a password,
-if so, the input will be hidden while typed.
-"""
 def cinput(msg, pwd=False):
+    """Custom input function in style of the terminal, 
+    taking a 2nd parameter checking if the input is going to be a password,
+    if so, the input will be hidden while typed."""
+
     global T_WIDTH
     print_empty_row()
     if pwd: return getpass.getpass(f"\033[A| [{INP}] {msg}") # Moves cursor up one line and adds layout since getpass() adds a newline
     return input(f"[{INP}] {msg}")
 
-"""
-Checks the width of the screen and prints the appropriate logo to the middle of the screen.
-"""
 def print_logo_middle():
+    """Checks the width of the screen and prints the appropriate logo to the middle of the screen."""
+
     global T_WIDTH
     # The full logo is 57 characters wide, so accounting for the bars on the side totals to 59 chars to display
     logo_name = LOGO_FULL_WIDTH if T_WIDTH >= 59 else LOGO_HALF_WIDTH 
@@ -82,10 +80,9 @@ def print_logo_middle():
     f.close()
 
 
-"""
-Prints the welcoming interface when starting the application. 
-"""
 def print_interface(clear=False):
+    """Prints the welcoming interface when starting the application."""
+
     global T_WIDTH
     instructions = ['Type !quit to exit.', 
                     'Type !who to see who is in the chatroom.', 
@@ -105,11 +102,10 @@ def new_msg(sender, msg_type, content="", receiver=None):
     return Message(sender, msg_type, content=content, receiver=receiver).to_json().encode('utf-8')
 
 
-"""
-A function to keep track of the terminal width, 
-and will resize the current display if the width changes.
-"""
 def dynamic_rescaler():
+    """A function to keep track of the terminal width, 
+    and will resize the current display if the width changes."""
+
     global T_WIDTH
     while True:
         if os.get_terminal_size().columns is not T_WIDTH:
