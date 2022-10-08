@@ -75,6 +75,8 @@ def check_screen_size(stdscr):
 
     global HEIGHT, WIDTH
 
+    HEIGHT, WIDTH = stdscr.getmaxyx()
+
     while True:
         w, h = os.get_terminal_size()
         if h != HEIGHT or w != WIDTH:
@@ -293,7 +295,7 @@ def setup_home_screen():
         LINES += 1
 
 
-    screen_inner.addstr(LINES,0, "-"*(WIDTH-5))
+    screen_inner.addstr(LINES,0, "-"*(WIDTH-4))
     LINES += 1
 
     screen_inner.refresh()
@@ -355,7 +357,7 @@ def data_receive(s, host_port):
 def print_chat_messages(user: User):
     """Prints chat messages to the screen"""
 
-    global LINES, screen_inner
+    global LINES, screen_inner, HEIGHT, WIDTH
 
     for chats in os.listdir('chats'):    
         if user.name in chats:
@@ -365,15 +367,21 @@ def print_chat_messages(user: User):
                     pre = lambda s: f"{s} {msg.sender} {msg.time_as_string()}"
 
                     if msg.sender != user.name:
-                        x = WIDTH-len(msg.sender)-len(msg.content)-len(msg.receiver)-13
-                        if x < 10:
-                            x = 10
-                        screen_inner.addstr(LINES, x, f"{msg.content} [{ pre('<') }]")
-                        screen_inner.refresh()
+                        msg_str = f"{msg.content} [{ pre('<') }]"
+                        x = IS_WIDTH-len(msg_str)
+                        
+                        mutli_line = IS_WIDTH-len(msg_str) < 10
+                        if mutli_line: x = 10
+                        
+                        screen_inner.addstr(LINES, x, msg_str)
                         LINES += 1
-                        # cprint(screen_inner, x, LINES, msg.content, pre("<"))
                     else:
-                        cprint(screen_inner, 0, LINES, msg.content, pre(">"))
+                        msg_str = f"[{ pre('>') }] {msg.content}"
+
+                        screen_inner.addstr(0, LINES, msg_str)
+                        LINES += 1
+
+                    msg_height = len(msg.content)+len(msg.sender) / (IS_WIDTH-2)
 
                 f.close()
 
@@ -418,7 +426,8 @@ def run_home(s: socket.socket, user: User):
 
         elif msg.startswith("!chat"):
             try:
-                to_send = new_msg(user, "CHAT", msg.split()[1])
+                msg = msg.split()
+                to_send = new_msg(user, "SEND", ' '.join(msg[2:]), User(msg[1]))
                 s.sendall(to_send)
             except IndexError:
                 cprint(screen_inner, 0, LINES, "Please enter a username to chat with.", ERR)
