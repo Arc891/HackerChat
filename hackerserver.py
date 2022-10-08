@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from Classes.chatmessage import ChatMessage
 from Classes.user import *
 from Classes.message import *
 import os
@@ -34,6 +35,7 @@ clients = []
 usernames = []
 
 def new_msg(msg_type, sender=None, content="", receiver=None):
+    """Quick constructor for new messages to sent to the server"""
     return Message(sender, msg_type, content=content, receiver=receiver).to_json().encode('utf-8')
 
 def error_handler(connection, address, err_type):
@@ -57,14 +59,14 @@ def check_socket(connection):
             return
     
     
-def client_setup(connection, address):
+def client_setup(connection: socket.socket, address):
     if len(clients) >= 100:
         connection.send(new_msg("BUSY"))
         return
     
     data = connection.recv(4096)
-    print(f"Data received from {address}: {data.decode('utf-8')}")
-    time.sleep(0.5)
+    # print(f"Data received from {address}: {data.decode('utf-8')}")
+    # time.sleep(0.5)
     msg_data = json.loads(data.decode("utf-8"))
     # print(f"Message data: {msg_data}")
 
@@ -113,7 +115,7 @@ def client_setup(connection, address):
         return
     
 
-def client_thread(connection, address, user):
+def client_thread(connection: socket.socket, address, user: User):
     print(address, "has started it's thread.")    
     time.sleep(0.5)
     sock_online = threading.Thread(target=check_socket, args=(connection,))
@@ -127,7 +129,7 @@ def client_thread(connection, address, user):
             data = connection.recv(4096)
             msg_data = json.loads(data.decode("utf-8"))
             msg = Message(**msg_data)
-
+            print(f"Received {msg.message_type} from {user.name}")
             if msg.message_type == "WHO":                        
                 user_string = ""
                 users = User.get_all_users()
@@ -142,17 +144,31 @@ def client_thread(connection, address, user):
             
             elif msg.message_type == "SEND":
                 send_message = msg.content
-                receiver = msg.receiver
-                            
-                if receiver not in usernames:
+                receiver = User(**msg.receiver)
+                print(f"Sending message {send_message} to {receiver.name}")
+                if not os.path.exists(f"users/{receiver.name}.json"):
                     raise UNKNOWN()
-                else: 
-                    con_index = usernames.index(receiver)
-                    sender_index = clients.index(connection)
+                else:
+                    receiver = User.load(receiver)
+                    for chat in os.listdir("chats"):
+                        if receiver.name in chat and user.name in chat:
+                            with open(f"chats/{chat}", "a") as f:
+                                f.write(f"{ChatMessage(user.name, receiver.name, time.localtime(), send_message).to_json()}\n")
+                            f.close()
+
+                            connection.send(new_msg("SEND-OK"))
+                            if receiver.fd != 0:
+                                socket.fromfd(receiver.fd, socket.AF_INET, socket.SOCK_STREAM).send(new_msg("DELIVERY", sender=user, content=send_message))
+
+                # if receiver not in usernames:
+                #     raise UNKNOWN()
+                # else: 
+                #     con_index = usernames.index(receiver)
+                #     sender_index = clients.index(connection)
                     
-                    connection.send(new_msg("SEND-OK"))
-                    clients[con_index].send(new_msg("DELIVERY", usernames[sender_index], send_message, usernames[con_index]))
-                    # clients[con_index].send(("DELIVERY " + usernames[sender_index] + " " +  send_message + "\n").encode("utf-8"))
+                #     connection.send(new_msg("SEND-OK"))
+                #     clients[con_index].send(new_msg("DELIVERY", usernames[sender_index], send_message, usernames[con_index]))
+                #     # clients[con_index].send(("DELIVERY " + usernames[sender_index] + " " +  send_message + "\n").encode("utf-8"))
                     
             elif msg.message_type == "LOGOUT":
                 disconnect_client(connection, user)
