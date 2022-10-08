@@ -5,6 +5,7 @@ import os
 import socket
 import threading
 import time
+from Classes.chatmessage import ChatMessage, ChatMessageDecoder
 from Classes.user import *
 from Classes.message import *
 from hashlib import sha256
@@ -24,10 +25,6 @@ LINES = 0
 HOST = '127.0.0.1'      # The server's hostname or IP address
 PORT = 5378             # The port used by the server
 host_port = (HOST, PORT)
-
-UNKNOWN = "UNKNOWN\n".encode("utf-8")
-SEND_OK = "SEND-OK\n".encode("utf-8")
-DELIVERY = "DELIVERY".encode("utf-8")
 
 # Failed implementation of a counter decorator for LINES on cprint and cinput
 # def increment(val):
@@ -65,10 +62,11 @@ def cinput(screen, x=0, y=0, text="", pwd=False):
     if y == LINES: LINES += 1
     return inp.decode('utf-8')
 
-def new_msg(sender, msg_type, content="", receiver=None):
-    """Quick constructor for new messages to sent to the server"""
 
-    return Message(sender, msg_type, content=content, receiver=receiver).to_json().encode('utf-8')
+def new_msg(sender: User, msg_type: str, content: str = "", receiver: User = None):
+    """Quick constructor for new messages to sent to the server"""
+    return Message(sender, msg_type, content, receiver).to_json().encode('utf-8')
+
 
 
 def check_screen_size(stdscr):
@@ -76,11 +74,11 @@ def check_screen_size(stdscr):
     Will resize the screens if it does change"""
 
     global HEIGHT, WIDTH
+
     while True:
         w, h = os.get_terminal_size()
         if h != HEIGHT or w != WIDTH:
             resize_and_setup(stdscr)
-
 
 
 def set_sizes(stdscr):
@@ -115,6 +113,29 @@ def create_screens(stdscr):
 
 
 
+
+def create_credentials_file(user: User, remember="n"):
+    with open("config/credentials.txt", "w") as f:
+        f.write(f"username={user.name}\n")
+        f.write(f"password={user.password}\n")
+        f.write(f"remember={remember}\n")
+    f.close()
+
+def return_credentials_file():
+    if os.path.isfile("config/credentials.txt"):
+        vals = []
+        with open("config/credentials.txt", "r") as f:
+            for _ in range(3):
+                vals.append(f.readline().strip().split("=")[1])
+        f.close()
+        if vals[2] == "y":
+            return User(vals[0], vals[1]) 
+        elif vals[2] == "n":
+            return None
+        elif vals[2] == "N":
+            return False
+    return None
+
 def setup_login_screen(stdscr):
     """Sets up screens by clearing and adding borders etc"""
 
@@ -138,27 +159,7 @@ def setup_login_screen(stdscr):
     screen_inner.refresh()
     return
 
-def create_credentials_file(user: User, remember="n"):
-    with open("config/credentials.txt", "w") as f:
-        f.write(f"username={user.name}\n")
-        f.write(f"password={user.password}\n")
-        f.write(f"remember={remember}\n")
-    f.close()
 
-def return_credentials_file():
-    if os.path.isfile("config/credentials.txt"):
-        vals = []
-        with open("config/credentials.txt", "r") as f:
-            for _ in range(3):
-                vals.append(f.readline().strip().split("=")[1])
-        f.close()
-        if vals[2] == "y":
-            return User(vals[0], vals[1]) 
-        elif vals[2] == "n":
-            return None
-        elif vals[2] == "N":
-            return False
-    return None
 
 def get_login_credentials():
     """Gather login credentials and return them in a Message to run with run_login"""
@@ -219,7 +220,7 @@ def run_login(msg: Message):
 
         LINES += 1
         cprint(screen_inner, 0, LINES, f"Connecting to {HOST}:{PORT}...", INF)
-        time.sleep(0.1)
+        
         try:    
             s.connect((HOST, PORT))
         except ConnectionRefusedError:
@@ -259,7 +260,7 @@ def run_login(msg: Message):
     
     LINES += 1
     cprint(screen_inner, 0, LINES, f"Welcome {user.name}!", SUC)
-    time.sleep(0.8)
+    time.sleep(1)
     # print home screen and initiate respective functions
     return (s, user)
 
@@ -317,15 +318,83 @@ def print_help():
     return
 
 
+def data_receive(s, host_port):
+    """Receives data from the server and prints it to the screen"""
+
+    while s.connect_ex(host_port) != 9:
+        data = s.recv(4096)
+        decoded_data = data.decode("utf-8")
+        
+        if not data:
+            break
+        
+        msg = Message(**json.loads(decoded_data))
+
+        if msg.message_type == "UNKNOWN":
+            cprint(screen_inner, 0, LINES, "Data is unknown", ERR)
+            time.sleep(0.1)
+            try:
+                s.getsockname()
+            except OSError:
+                break
+            cprint(screen_inner, 0, LINES, decoded_data[:len(decoded_data)-1], SER)
+            
+        elif msg.message_type == "SEND-OK":
+            cprint(screen_inner, 0, LINES, data, SER)
+        
+        elif msg.message_type == "DELIVERY":
+            cprint(screen_inner, 0, LINES, "Data is delivered", SER)
+            cprint(screen_inner, 0, LINES, msg.content)
+            
+        elif msg.message_type == "WHO-OK":
+            cprint(screen_inner, 0, LINES, f"Online: {msg.content}", SER)
+        else:
+            cprint(f"Random data received: {msg.content}", SER)
+
+
+def print_chat_messages(user: User):
+    """Prints chat messages to the screen"""
+
+    global LINES, screen_inner
+
+    for chats in os.listdir('chats'):    
+        if user.name in chats:
+            with open(f'chats/{chats}', 'r') as f:
+                for line in f:
+                    msg = ChatMessage(**json.loads(line, cls=ChatMessageDecoder))
+                    pre = lambda s: f"{s} {msg.sender} {msg.time_as_string()}"
+
+                    if msg.sender != user.name:
+                        x = WIDTH-len(msg.sender)-len(msg.content)-len(msg.receiver)-13
+                        if x < 10:
+                            x = 10
+                        screen_inner.addstr(LINES, x, f"{msg.content} [{ pre('<') }]")
+                        screen_inner.refresh()
+                        LINES += 1
+                        # cprint(screen_inner, x, LINES, msg.content, pre("<"))
+                    else:
+                        cprint(screen_inner, 0, LINES, msg.content, pre(">"))
+
+                f.close()
+
+    screen_inner.refresh()
+    return
+
+
 def run_home(s: socket.socket, user: User):
     """Runs the main screen of the chat application"""
 
     global LINES, screen_inner, input_inner, input_outer, HEIGHT, WIDTH
 
+    t = threading.Thread(target=data_receive, args=(s, host_port), daemon=True)
+    t.start()
+
+    
+
     while True:
         input_inner.addstr(0, 0, "$", curses.A_BOLD)
         msg = input_inner.getstr(0,2).decode("utf-8")
-        to_send = b''
+        
         if not msg: continue
 
         if msg == "!quit":
@@ -338,30 +407,35 @@ def run_home(s: socket.socket, user: User):
             print_help()
 
         elif msg == "!online":
-            cprint(screen_inner, 0, LINES, "Available users: ", INF)
-            # LINES +=
+            s.sendall(new_msg(user, "WHO"))
 
         elif msg == "!clear":
             screen_inner.clear()
             setup_home_screen()
 
+        elif msg == "!chat":
+            print_chat_messages(user)
+
         elif msg.startswith("!chat"):
             try:
                 to_send = new_msg(user, "CHAT", msg.split()[1])
+                s.sendall(to_send)
             except IndexError:
                 cprint(screen_inner, 0, LINES, "Please enter a username to chat with.", ERR)
         
         else:
             cprint(screen_inner, 0, LINES, "Unknown command. Type !help to see all available commands.", ERR)
         
-        s.sendall(to_send)
         input_inner.clear()
         input_inner.refresh()
         time.sleep(1/100)
 
 
 def resize_and_setup(stdscr):
-    """Resizes the screens and prints the new layout"""
+    """Resizes all the screens and pads and sets up the new ones"""
+
+    global HEIGHT, WIDTH, IS_HEIGHT, IS_WIDTH, OI_HEIGHT, OI_WIDTH, II_HEIGHT, II_WIDTH
+    global screen_inner, input_outer, input_inner
 
     set_sizes(stdscr)
 
@@ -369,7 +443,13 @@ def resize_and_setup(stdscr):
     input_outer.resize(OI_HEIGHT, OI_WIDTH)
     input_inner.resize(II_HEIGHT, II_WIDTH)
 
-    setup_home_screen()
+    screen_inner.mvwin(1, 2)
+    input_outer.mvwin(HEIGHT-(OI_HEIGHT)-1, 2)
+    input_inner.mvwin(HEIGHT-(OI_HEIGHT), 3)
+
+    screen_inner.refresh()
+    input_outer.refresh()
+    input_inner.refresh()
     return
 
 
@@ -377,14 +457,16 @@ def main(stdscr):
     """Main function"""
 
     global HEIGHT, WIDTH, LINES, screen_inner, input_outer, input_inner    
+    
+    t = threading.Thread(target=check_screen_size, args=(stdscr,), daemon=True)
+    t.start()
+    
     create_screens(stdscr)
     setup_login_screen(stdscr)
     login = get_login_credentials()
     (s, user) = run_login(login)
     setup_home_screen()
     run_home(s, user)
-    # t = threading.Thread(target=check_screen_size, args=(stdscr,), daemon=True)
-    # t.start()
     stdscr.getch()
     return
 
