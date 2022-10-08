@@ -224,7 +224,7 @@ def run_login(msg: Message):
             s.connect((HOST, PORT))
         except ConnectionRefusedError:
             cprint(screen_inner, 0, LINES, f"Connection to {HOST}:{PORT} failed. Server is most likely offline.", ERR)
-            return
+            return False
         
         cprint(screen_inner, 0, LINES, "Connected.", SUC)
 
@@ -246,7 +246,7 @@ def run_login(msg: Message):
                 if response.message_type == "BAD-PASS":
                     pwd = cinput(screen_inner, 0, LINES, 'Password is incorrect, try again: ', pwd=True)
                     user.password = sha256(pwd.encode("utf-8")).hexdigest()
-                    string_bytes = new_msg(user, msg.msg_type)
+                    string_bytes = new_msg(user, msg.message_type)
                     continue
 
                 err_msg = ""
@@ -255,30 +255,28 @@ def run_login(msg: Message):
                 else:                                        err_msg = "taken"
                 username = cinput(screen_inner, 0, LINES, f'Username is {err_msg}, please enter another: ')
                 user.name = username
-                string_bytes = new_msg(user, msg.msg_type)
+                string_bytes = new_msg(user, msg.message_type)
     
     LINES += 1
     cprint(screen_inner, 0, LINES, f"Welcome {user.name}!", SUC)
-    time.sleep(1)
+    time.sleep(0.8)
     # print home screen and initiate respective functions
-    return True
+    return (s, user)
 
 
-def setup_home_screen(stdscr):
+def setup_home_screen():
     """Sets up screens by clearing and adding borders etc"""
 
     global HEIGHT, WIDTH, LINES, screen_inner, input_outer, input_inner
 
     instructions = ['Type !quit to exit.', 
-                    'Type @username to a specific chat.',
+                    'Type !chat <chat> to go to said chat.',
                     'Type !help to see all available commands.'] 
 
-    stdscr.clear()
     screen_inner.clear()
     input_outer.clear()
     input_inner.clear()
 
-    stdscr.border("|", "|", "-", "-", "+", "+", "+", "+")
     input_outer.border("|", "|", "-", "-", "+", "+", "+", "+")
     
     LINES = 0
@@ -297,18 +295,69 @@ def setup_home_screen(stdscr):
     screen_inner.addstr(LINES,0, "-"*(WIDTH-5))
     LINES += 1
 
-    stdscr.refresh()
     screen_inner.refresh()
     input_outer.refresh()
     input_inner.refresh()  
     return
 
+def print_help():
+    """Prints help to the screen"""
 
-def run_home():
+    global LINES, screen_inner
+
+    help = ['!help: Prints this help message.',
+            '!quit: Quits the program.',
+            '!online: Prints all online users.',
+            '!chat <username/groupname>: Opens chat with <username>.']
+    
+    for line in help:
+        cprint(screen_inner, 0, LINES, line)
+
+    screen_inner.refresh()
+    return
+
+
+def run_home(s: socket.socket, user: User):
     """Runs the main screen of the chat application"""
 
-    pass
+    global LINES, screen_inner, input_inner, input_outer, HEIGHT, WIDTH
 
+    while True:
+        input_inner.addstr(0, 0, "$", curses.A_BOLD)
+        msg = input_inner.getstr(0,2).decode("utf-8")
+        to_send = b''
+        if not msg: continue
+
+        if msg == "!quit":
+            s.sendall(new_msg(user, "LOGOUT"))
+            time.sleep(0.1)
+            s.close()
+            break
+
+        elif msg == "!help":
+            print_help()
+
+        elif msg == "!online":
+            cprint(screen_inner, 0, LINES, "Available users: ", INF)
+            # LINES +=
+
+        elif msg == "!clear":
+            screen_inner.clear()
+            setup_home_screen()
+
+        elif msg.startswith("!chat"):
+            try:
+                to_send = new_msg(user, "CHAT", msg.split()[1])
+            except IndexError:
+                cprint(screen_inner, 0, LINES, "Please enter a username to chat with.", ERR)
+        
+        else:
+            cprint(screen_inner, 0, LINES, "Unknown command. Type !help to see all available commands.", ERR)
+        
+        s.sendall(to_send)
+        input_inner.clear()
+        input_inner.refresh()
+        time.sleep(1/100)
 
 
 def resize_and_setup(stdscr):
@@ -320,7 +369,7 @@ def resize_and_setup(stdscr):
     input_outer.resize(OI_HEIGHT, OI_WIDTH)
     input_inner.resize(II_HEIGHT, II_WIDTH)
 
-    setup_home_screen(stdscr)
+    setup_home_screen()
     return
 
 
@@ -331,9 +380,9 @@ def main(stdscr):
     create_screens(stdscr)
     setup_login_screen(stdscr)
     login = get_login_credentials()
-    run_login(login)
-    setup_home_screen(stdscr)
-    run_home()
+    (s, user) = run_login(login)
+    setup_home_screen()
+    run_home(s, user)
     # t = threading.Thread(target=check_screen_size, args=(stdscr,), daemon=True)
     # t.start()
     stdscr.getch()
