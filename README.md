@@ -19,8 +19,8 @@ The open chat is a chat where you connect with the server, and enter a global ch
 
 ## Dependancies
 
-- Python 3.6
-<!-- - curses module -->
+- Python 3.6+
+- curses module
 
 ## Functionality roadmap
 
