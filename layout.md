@@ -39,7 +39,7 @@ Screen 1:
 
 ### TODO:
 - [x]  Make sure printing inputs works and looks good
-- [ ]  Add remember login details
+- [x]  Add remember login details
 
 
 ## Home screen
@@ -86,8 +86,8 @@ Screen 1:
 ### Capabilities:
 Screen 1:
 - [ ]  Dynamic title art -/- Might not be a good idea considering the size of the title art
-- [ ]  Stationary, needs to be 1/6th of screen height
-- [ ]  Print instructions, check amount of lines available (?)
+- [x]  Stationary, needs to be 1/6th of screen height
+- [x]  Print instructions, check amount of lines available (?)
 
 Screen 2:
 - [ ]  Scrollable display -> needs to be a pad
@@ -99,7 +99,7 @@ Screen 3:
 
 Screen 4:
 - [ ]  Scrollable input box -> needs to be a pad
-- [ ]  Needs to be 1/6th of screen height
+- [x]  Needs to be 1/6th of screen height
 
 
 ### TODO:
