@@ -364,21 +364,35 @@ def print_chat_messages(user: User):
             with open(f'chats/{chats}', 'r') as f:
                 for line in f:
                     msg = ChatMessage(**json.loads(line, cls=ChatMessageDecoder))
-                    pre = lambda s: f"{s} {msg.sender} {msg.time_as_string()}"
+                    pre = lambda s, x="": f"{x}[{s} {msg.sender} {msg.time_as_string()}]"
 
                     if msg.sender != user.name:
-                        msg_str = f"{msg.content} [{ pre('<') }]"
-                        x = IS_WIDTH-len(msg_str)
-                        
-                        mutli_line = IS_WIDTH-len(msg_str) < 10
-                        if mutli_line: x = 10
-                        
-                        screen_inner.addstr(LINES, x, msg_str)
-                        LINES += 1
-                    else:
-                        msg_str = f"[{ pre('>') }] {msg.content}"
+                        msg_list = msg.content.split()
+                        j = 0
+                        for i in range(len(msg_list)):
+                            rest = ' '.join(msg_list[j:]) + pre('<', ' ')
+                            if len(rest) <= IS_WIDTH-10:
+                                screen_inner.addstr(LINES, IS_WIDTH-len(rest)-1, rest)
+                                LINES += 1
+                                break
+                            if len(' '.join(msg_list[j:i])) > IS_WIDTH-10:
+                                screen_inner.addstr(LINES, 10, ' '.join(msg_list[j:i-1]))
+                                LINES += 1
+                                j = i-1
 
-                        screen_inner.addstr(0, LINES, msg_str)
+                        # Implementation without word wrapping and always shifted to the left
+                        # msg_str = f"{msg.content} [{ pre('<') }]"
+                        # for i in range(0, len(msg_str), IS_WIDTH-10):
+                        #     split_line = msg_str[i:i+IS_WIDTH-10]
+                        #     length = IS_WIDTH-len(split_line)
+                        #     x = 10 if length < 10 else length
+                        #     screen_inner.addstr(LINES, x, split_line)
+                        #     LINES += 1
+                        
+                    else: #TODO: Make this also word wrap
+                        msg_str = f"{ pre('>') } {msg.content}"
+
+                        screen_inner.addstr(LINES, 0, msg_str)
                         LINES += 1
 
                     msg_height = len(msg.content)+len(msg.sender) / (IS_WIDTH-2)
