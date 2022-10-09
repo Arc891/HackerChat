@@ -17,7 +17,8 @@ class ChatMessage(object):
         return Message(User(self.sender), "CHAT", self.content, User(self.receiver))
 
     def time_as_string(self):
-        return f"{self.time.tm_hour}:{self.time.tm_min}:{self.time.tm_sec}"
+        hours = self.time.tm_hour if self.time.tm_hour > 9 else "0" + str(self.time.tm_hour)
+        return f"{hours}:{self.time.tm_min}:{self.time.tm_sec}"
 
     def to_json(self):
         return json.dumps(self, default=lambda o: o.__dict__, 
