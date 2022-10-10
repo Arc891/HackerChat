@@ -362,43 +362,51 @@ def print_chat_messages(user: User):
     for chats in os.listdir('chats'):    
         if user.name in chats:
             with open(f'chats/{chats}', 'r') as f:
-                for line in f:
-                    msg = ChatMessage(**json.loads(line, cls=ChatMessageDecoder))
-                    pre = lambda s, x="": f"{x}[{s} {msg.sender} {msg.time_as_string()}]"
+                for message in f:
+                    msg = ChatMessage(**json.loads(message, cls=ChatMessageDecoder))
+                    pre = lambda s, f="", b="": f"{f}[{s} {msg.sender} {msg.time_as_string()}]{b}"
+
+                    msg_list = msg.content.split()
+                    j = 0
+                    # for i in range(len(msg_list)):
+                    #     rest = (' '.join(msg_list[j:]) + pre('<', f=' ')) if msg.sender != user.name else pre('>', b=' ') + ' '.join(msg_list[j:])
+                    #     x = 10 if msg.sender != user.name else 0
+
+                    #     if len(rest) <= IS_WIDTH-10:
+                    #         screen_inner.addstr(LINES, IS_WIDTH-len(rest), rest)
+                    #         LINES += 1
+                    #         break
+                    #     if len(' '.join(msg_list[j:i])) > IS_WIDTH-10:
+                    #         screen_inner.addstr(LINES, x, ' '.join(msg_list[j:i-1]))
+                    #         LINES += 1
+                    #         j = i-1
 
                     if msg.sender != user.name:
-                        msg_list = msg.content.split()
-                        j = 0
                         for i in range(len(msg_list)):
-                            rest = ' '.join(msg_list[j:]) + pre('<', ' ')
+                            rest = ' '.join(msg_list[j:]) + pre('<', f=' ')
                             if len(rest) <= IS_WIDTH-10:
-                                screen_inner.addstr(LINES, IS_WIDTH-len(rest)-1, rest)
+                                screen_inner.addstr(LINES, IS_WIDTH-len(rest), rest)
                                 LINES += 1
                                 break
                             if len(' '.join(msg_list[j:i])) > IS_WIDTH-10:
                                 screen_inner.addstr(LINES, 10, ' '.join(msg_list[j:i-1]))
                                 LINES += 1
                                 j = i-1
-
-                        # Implementation without word wrapping and always shifted to the left
-                        # msg_str = f"{msg.content} [{ pre('<') }]"
-                        # for i in range(0, len(msg_str), IS_WIDTH-10):
-                        #     split_line = msg_str[i:i+IS_WIDTH-10]
-                        #     length = IS_WIDTH-len(split_line)
-                        #     x = 10 if length < 10 else length
-                        #     screen_inner.addstr(LINES, x, split_line)
-                        #     LINES += 1
                         
-                    else: #TODO: Make this also word wrap
-                        msg_str = f"{ pre('>') } {msg.content}"
-
-                        screen_inner.addstr(LINES, 0, msg_str)
-                        LINES += 1
-
-                    msg_height = len(msg.content)+len(msg.sender) / (IS_WIDTH-2)
-
-                f.close()
-
+                    else: #TODO: Fix last line printing
+                        for i in range(len(msg_list)):
+                            rest = pre('>', b=' ') + ' '.join(msg_list[j:])
+                            if len(rest) <= IS_WIDTH-10:
+                                add = rest if j == 0 else ' '.join(msg_list[j:i-1])
+                                screen_inner.addstr(LINES, 0, add)
+                                LINES += 1
+                                break
+                            if len(' '.join(msg_list[j:i])) > IS_WIDTH-10:
+                                add = rest if j == 0 else ' '.join(msg_list[j:i-1])
+                                screen_inner.addstr(LINES, 0, add)
+                                LINES += 1
+                                j = i-1
+    
     screen_inner.refresh()
     return
 
