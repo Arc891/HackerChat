@@ -23,16 +23,15 @@ server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 user_chars = string.ascii_letters + string.digits
 
-host = '127.0.0.1'
-port = 5378
-host_port = (host, port)
-server.bind(host_port)
+HOST = '127.0.0.1'
+PORT = 5378
+HOST_PORT = (HOST, PORT)
+server.bind(HOST_PORT)
+
+ONLINE = 0
 
 print("Server turned ON")
 server.listen(100)
-
-clients = []
-usernames = []
 
 def new_msg(msg_type, sender=None, content="", receiver=None):
     """Quick constructor for new messages to sent to the server"""
@@ -43,12 +42,10 @@ def error_handler(connection, address, err_type):
     connection.send(new_msg(err_type))
     return
 
-# TODO: Replace clients and usernames for JSON format: update statuses to offline and remove client for next connection
 def disconnect_client(connection, user): 
+    global ONLINE
     user = user.set_status("offline").set_address(None).set_fd(0)
-    pop_index = 0 - (len(clients) - clients.index(connection))
-    clients.pop(pop_index)
-    usernames.pop(pop_index)
+    ONLINE -= 1
     return
 
 def check_socket(connection):
@@ -60,21 +57,18 @@ def check_socket(connection):
     
     
 def client_setup(connection: socket.socket, address):
-    if len(clients) >= 100:
+    global ONLINE
+    if ONLINE >= 100:
         connection.send(new_msg("BUSY"))
         return
     
     data = connection.recv(4096)
-    # print(f"Data received from {address}: {data.decode('utf-8')}")
-    # time.sleep(0.5)
     msg_data = json.loads(data.decode("utf-8"))
-    # print(f"Message data: {msg_data}")
 
     msg = Message(**msg_data)
     user = User(**msg.sender)
 
     print(f"[+] {msg.message_type}, {user.name}")
-    # print(f"Received {msg} from {address}")
 
     username = user.name
     
@@ -91,16 +85,12 @@ def client_setup(connection: socket.socket, address):
         else:
             connection.send(new_msg("HELLO"))
             user.save()
-            clients.append(connection)
-            usernames.append(username)
             client_thread(connection, address, user)
 
     elif msg.message_type == "LOGIN":
         if os.path.isfile(f"users/{username}.json"):
             if user.verify_login(user.password):
                 connection.send(new_msg("HELLO"))
-                clients.append(connection)
-                usernames.append(username)
                 client_thread(connection, address, user)
             else:
                 error_handler(connection, address, "BAD-PASS")
@@ -116,13 +106,14 @@ def client_setup(connection: socket.socket, address):
     
 
 def client_thread(connection: socket.socket, address, user: User):
-    print(address, "has started it's thread.")    
-    time.sleep(0.5)
+    global ONLINE
+
     sock_online = threading.Thread(target=check_socket, args=(connection,))
     sock_online.start()
 
     print(f"User {user.name} has logged in from {address}.")
     user = user.set_status("online").set_address(address).set_fd(connection.fileno())
+    ONLINE += 1
 
     while sock_online.is_alive():       
         try:
@@ -160,16 +151,6 @@ def client_thread(connection: socket.socket, address, user: User):
                             if receiver.fd != 0:
                                 socket.fromfd(receiver.fd, socket.AF_INET, socket.SOCK_STREAM).send(new_msg("DELIVERY", sender=user, content=send_message))
 
-                # if receiver not in usernames:
-                #     raise UNKNOWN()
-                # else: 
-                #     con_index = usernames.index(receiver)
-                #     sender_index = clients.index(connection)
-                    
-                #     connection.send(new_msg("SEND-OK"))
-                #     clients[con_index].send(new_msg("DELIVERY", usernames[sender_index], send_message, usernames[con_index]))
-                #     # clients[con_index].send(("DELIVERY " + usernames[sender_index] + " " +  send_message + "\n").encode("utf-8"))
-                    
             elif msg.message_type == "LOGOUT":
                 disconnect_client(connection, user)
                 print("Client disconnected")
@@ -181,12 +162,10 @@ def client_thread(connection: socket.socket, address, user: User):
         except UNKNOWN:
             print("Exception UNKNOWN sent")
             connection.send(new_msg("UNKNOWN"))
-            # connection.send(('UNKNOWN\n').encode('utf-8'))
         
         except BAD_RQST_BODY:
             print("Exception BAD-RQST-BODY sent")
             connection.send(new_msg("BAD-RQST-BODY"))
-            # connection.send(('BAD-RQST-BODY\n').encode('utf-8'))
 
         except ConnectionResetError:
             disconnect_client(connection, user)
