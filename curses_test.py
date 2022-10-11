@@ -26,18 +26,6 @@ HOST = '127.0.0.1'      # The server's hostname or IP address
 PORT = 5378             # The port used by the server
 host_port = (HOST, PORT)
 
-# Failed implementation of a counter decorator for LINES on cprint and cinput
-# def increment(val):
-#     def increment_lines(func):
-#         global LINES
-#         def helper(*args, **kwargs):
-#             global LINES
-#             res = func(*args, **kwargs)
-#             LINES = val + 1
-#             return res
-#         return helper
-#     return increment_lines
-
 def cprint(screen, x=0, y=0, text="", pre=INF):
     """Custom print function in style of the terminal onto a specific screen, 
     taking a 3rd parameter which defines the icon between the square brackets. """
@@ -263,7 +251,6 @@ def run_login(msg: Message):
     LINES += 1
     cprint(screen_inner, 0, LINES, f"Welcome {user.name}!", SUC)
     time.sleep(1)
-    # print home screen and initiate respective functions
     return (s, user)
 
 
@@ -354,13 +341,13 @@ def data_receive(s, host_port):
             cprint(f"Random data received: {msg.content}", SER)
 
 
-def print_chat_messages(user: User):
+def print_chat_messages(user: User, receiver: User = User('')):
     """Prints chat messages to the screen"""
 
     global LINES, screen_inner, HEIGHT, WIDTH
 
     for chats in os.listdir('chats'):    
-        if user.name in chats:
+        if user.name in chats and receiver.name in chats:
             with open(f'chats/{chats}', 'r') as f:
                 for message in f:
                     msg = ChatMessage(**json.loads(message, cls=ChatMessageDecoder))
@@ -368,18 +355,6 @@ def print_chat_messages(user: User):
 
                     msg_list = msg.content.split()
                     j = 0
-                    # for i in range(len(msg_list)):
-                    #     rest = (' '.join(msg_list[j:]) + pre('<', f=' ')) if msg.sender != user.name else pre('>', b=' ') + ' '.join(msg_list[j:])
-                    #     x = 10 if msg.sender != user.name else 0
-
-                    #     if len(rest) <= IS_WIDTH-10:
-                    #         screen_inner.addstr(LINES, IS_WIDTH-len(rest), rest)
-                    #         LINES += 1
-                    #         break
-                    #     if len(' '.join(msg_list[j:i])) > IS_WIDTH-10:
-                    #         screen_inner.addstr(LINES, x, ' '.join(msg_list[j:i-1]))
-                    #         LINES += 1
-                    #         j = i-1
 
                     if msg.sender != user.name:
                         for i in range(len(msg_list)):
@@ -393,17 +368,21 @@ def print_chat_messages(user: User):
                                 LINES += 1
                                 j = i-1
                         
-                    else: #TODO: Fix last line printing
+                    else: 
                         for i in range(len(msg_list)):
-                            rest = pre('>', b=' ') + ' '.join(msg_list[j:])
-                            if len(rest) <= IS_WIDTH-10:
-                                add = rest if j == 0 else ' '.join(msg_list[j:i-1])
-                                screen_inner.addstr(LINES, 0, add)
+                            if i+1 == len(msg_list):
+                                add = pre('>', b=' ') if j == 0 else ""
+                                screen_inner.addstr(LINES, 0, add + ' '.join(msg_list[j:]))
                                 LINES += 1
                                 break
-                            if len(' '.join(msg_list[j:i])) > IS_WIDTH-10:
-                                add = rest if j == 0 else ' '.join(msg_list[j:i-1])
-                                screen_inner.addstr(LINES, 0, add)
+                            if j == 0:
+                                if i+1 < len(msg_list):
+                                    if len(pre('>', b=' ') + ' '.join(msg_list[j:i+1])) > IS_WIDTH-10:
+                                        screen_inner.addstr(LINES, 0, pre('>', b=' ') + ' '.join(msg_list[j:i+1]))
+                                        LINES += 1
+                                        j = i+1
+                            elif len(' '.join(msg_list[j:i])) > IS_WIDTH-10:
+                                screen_inner.addstr(LINES, 0, ' '.join(msg_list[j:i-1]))
                                 LINES += 1
                                 j = i-1
     
