@@ -5,11 +5,15 @@ import os
 import socket
 import threading
 import time
-from Classes.chatmessage import ChatMessage, ChatMessageDecoder
+from typing import Callable
+from Classes.chatmessage import *
 from Classes.user import *
 from Classes.message import *
 from hashlib import sha256
 from curses import wrapper
+
+from hackerchat import LOGO_FULL_WIDTH
+from hackerchat import LOGO_HALF_WIDTH
 
 WAI = "."
 INF = "*"
@@ -17,6 +21,7 @@ SUC = "+"
 ERR = "!"
 INP = ">"
 SER = "S"
+NON = ""
 
 SIGNUP = False
 
@@ -26,12 +31,19 @@ HOST = '127.0.0.1'      # The server's hostname or IP address
 PORT = 5378             # The port used by the server
 host_port = (HOST, PORT)
 
+def set_bg_color(stdscr):
+    if curses.can_change_color():
+        # init_color(n, r, g, b) where n=0 is background, r,g,b=0-1000
+        curses.init_color(0, 100, 100, 100)
+
+
 def cprint(screen, x=0, y=0, text="", pre=INF):
     """Custom print function in style of the terminal onto a specific screen, 
     taking a 3rd parameter which defines the icon between the square brackets. """
 
     global LINES
-    screen.addstr(y, x, f"[{pre}] {text}")
+    to_print = f"{f'[{pre}] ' if pre else NON}{text}"
+    screen.addstr(y, x, to_print)
     screen.refresh()
     if y == LINES: LINES += 1
     return
@@ -126,6 +138,8 @@ def return_credentials_file():
             return False
     return None
 
+
+
 def setup_login_screen(stdscr):
     """Sets up screens by clearing and adding borders etc"""
 
@@ -138,7 +152,9 @@ def setup_login_screen(stdscr):
     
     LINES = 0
 
-    with open('Logos/logo-full-width.txt', 'r') as f:
+    logo_name = LOGO_FULL_WIDTH if WIDTH >= 59 else LOGO_HALF_WIDTH
+
+    with open(logo_name, 'r') as f:
         for i, line in enumerate(f):
             screen_inner.addstr(i, (WIDTH-len(line))//2-1, line[:-1], curses.A_BOLD)
             LINES += 1 
@@ -196,6 +212,8 @@ def get_login_credentials():
     msg_type = "SIGNUP" if SIGNUP else "LOGIN"
     return Message(User(user, pwd), msg_type)
     
+
+
 def run_login(msg: Message):
     """Connects with the server and tries to login with the given credentials.\n
     Also handles any errors that might be returned when attempting login."""
@@ -271,16 +289,15 @@ def setup_home_screen():
     
     LINES = 0
 
-    with open('Logos/logo-full-width.txt', 'r') as f:
+    logo_name = LOGO_FULL_WIDTH if WIDTH >= 59 else LOGO_HALF_WIDTH
+
+    with open(logo_name, 'r') as f:
         for i, line in enumerate(f):
             screen_inner.addstr(i, (WIDTH-len(line))//2-1, line[:-1], curses.A_BOLD)
             LINES += 1
         f.close()
     
-    for line in instructions:
-        screen_inner.addstr(LINES, (WIDTH-len(line))//2-1, line, curses.A_BOLD)
-        LINES += 1
-
+    print_help(screen_inner, lambda x: (WIDTH-len(x))//2-1, instructions)
 
     screen_inner.addstr(LINES,0, "-"*(WIDTH-4))
     LINES += 1
@@ -290,20 +307,26 @@ def setup_home_screen():
     input_inner.refresh()  
     return
 
-def print_help():
-    """Prints help to the screen"""
+def print_help(screen: curses.window, x: Callable[[str], int], instructions: list[str] = []):
+    """Prints help to the screen\n
+    x is a function, which is passed the line to print and should return an x coordinate"""
 
-    global LINES, screen_inner
-
-    help = ['!help: Prints this help message.',
-            '!quit: Quits the program.',
-            '!online: Prints all online users.',
-            '!chat <username/groupname>: Opens chat with <username>.']
+    global LINES
     
-    for line in help:
-        cprint(screen_inner, 0, LINES, line)
+    if instructions == []: 
+        instructions = [
+        '[+] HackerChat help section [+]',
+        '!h[elp]: Prints this help message.',
+        '!q[uit]: Quits the program.',
+        '!o[nline]: Prints all online users.',
+        '!cl[ear]: Clears the screen.'
+        '!chat <username/groupname>: Opens specified chat.',
+    ]
+    
+    for line in instructions:
+        cprint(screen, x(line), LINES, line, NON)
 
-    screen_inner.refresh()
+    screen.refresh()
     return
 
 
@@ -341,10 +364,10 @@ def data_receive(s, host_port):
             cprint(f"Random data received: {msg.content}", SER)
 
 
-def print_chat_messages(user: User, receiver: User = User('')):
+def print_chat_messages(screen: curses.window, user: User, receiver: User = User('')):
     """Prints chat messages to the screen"""
 
-    global LINES, screen_inner, HEIGHT, WIDTH
+    global LINES, HEIGHT, WIDTH
 
     for chats in os.listdir('chats'):    
         if user.name in chats and receiver.name in chats:
@@ -360,11 +383,11 @@ def print_chat_messages(user: User, receiver: User = User('')):
                         for i in range(len(msg_list)):
                             rest = ' '.join(msg_list[j:]) + pre('<', f=' ')
                             if len(rest) <= IS_WIDTH-10:
-                                screen_inner.addstr(LINES, IS_WIDTH-len(rest), rest)
+                                screen.addstr(LINES, IS_WIDTH-len(rest), rest)
                                 LINES += 1
                                 break
                             if len(' '.join(msg_list[j:i])) > IS_WIDTH-10:
-                                screen_inner.addstr(LINES, 10, ' '.join(msg_list[j:i-1]))
+                                screen.addstr(LINES, 10, ' '.join(msg_list[j:i-1]))
                                 LINES += 1
                                 j = i-1
                         
@@ -372,21 +395,21 @@ def print_chat_messages(user: User, receiver: User = User('')):
                         for i in range(len(msg_list)):
                             if i+1 == len(msg_list):
                                 add = pre('>', b=' ') if j == 0 else ""
-                                screen_inner.addstr(LINES, 0, add + ' '.join(msg_list[j:]))
+                                screen.addstr(LINES, 0, add + ' '.join(msg_list[j:]))
                                 LINES += 1
                                 break
                             if j == 0:
                                 if i+1 < len(msg_list):
                                     if len(pre('>', b=' ') + ' '.join(msg_list[j:i+1])) > IS_WIDTH-10:
-                                        screen_inner.addstr(LINES, 0, pre('>', b=' ') + ' '.join(msg_list[j:i+1]))
+                                        screen.addstr(LINES, 0, pre('>', b=' ') + ' '.join(msg_list[j:i+1]))
                                         LINES += 1
                                         j = i+1
                             elif len(' '.join(msg_list[j:i])) > IS_WIDTH-10:
-                                screen_inner.addstr(LINES, 0, ' '.join(msg_list[j:i-1]))
+                                screen.addstr(LINES, 0, ' '.join(msg_list[j:i-1]))
                                 LINES += 1
                                 j = i-1
     
-    screen_inner.refresh()
+    screen.refresh()
     return
 
 
@@ -406,24 +429,24 @@ def run_home(s: socket.socket, user: User):
         
         if not msg: continue
 
-        if msg == "!quit":
+        if msg == "!q" or msg == "!quit":
             s.sendall(new_msg(user, "LOGOUT"))
             time.sleep(0.1)
             s.close()
             break
 
-        elif msg == "!help":
-            print_help()
+        elif msg == "!h" or msg == "!help":
+            print_help(screen_inner, lambda _: 0)
 
-        elif msg == "!online":
+        elif msg == "!o" or msg == "!online":
             s.sendall(new_msg(user, "WHO"))
 
-        elif msg == "!clear":
+        elif msg == "!cl" or msg == "!clear":
             screen_inner.clear()
             setup_home_screen()
 
         elif msg == "!chat":
-            print_chat_messages(user)
+            print_chat_messages(screen_inner, user=user)
 
         elif msg.startswith("!chat"):
             try:
@@ -471,6 +494,7 @@ def main(stdscr):
     t = threading.Thread(target=check_screen_size, args=(stdscr,), daemon=True)
     t.start()
     
+    set_bg_color(stdscr)
     create_screens(stdscr)
     setup_login_screen(stdscr)
     login = get_login_credentials()
