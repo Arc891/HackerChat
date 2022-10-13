@@ -24,6 +24,8 @@ class ChatMessage(object):
         return json.dumps(self, default=lambda o: o.__dict__, 
             sort_keys=True, indent=None)
 
+    def from_json(message: str):
+        return ChatMessage(**json.loads(message, cls=ChatMessageDecoder))
 
 class ChatMessageDecoder(json.JSONDecoder):
     def __init__(self, *args, **kwargs):
