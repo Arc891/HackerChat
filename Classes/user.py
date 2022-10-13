@@ -3,7 +3,7 @@ import os
 from typing import Literal
 
 class User(object):
-    def __init__(self, name: str, password: str = "", status: Literal['offline', 'online']='offline', address=("127.0.0.1", 5378), fd = 0):
+    def __init__(self, name: str, password: str = "", status: Literal['offline', 'online'] = 'offline', address: tuple[str, int] = None, fd = 0):
         self.name = name
         self.password = password
         self.status = status
