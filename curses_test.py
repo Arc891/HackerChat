@@ -5,10 +5,12 @@ import os
 import socket
 import threading
 import time
+import json
 from typing import Callable
-from Classes.chatmessage import *
-from Classes.user import *
-from Classes.message import *
+from Classes.chatmessage import ChatMessage
+from Classes.user import User
+from Classes.message import Message
+from Classes.chat import Chat
 from hashlib import sha256
 from curses import wrapper
 
@@ -31,13 +33,13 @@ HOST = '127.0.0.1'      # The server's hostname or IP address
 PORT = 5378             # The port used by the server
 host_port = (HOST, PORT)
 
-def set_bg_color(stdscr):
+def set_bg_color(r: int, g: int, b: int):
     if curses.can_change_color():
         # init_color(n, r, g, b) where n=0 is background, r,g,b=0-1000
-        curses.init_color(0, 100, 100, 100)
+        curses.init_color(0, r, g, b)
 
 
-def cprint(screen, x=0, y=0, text="", pre=INF):
+def cprint(screen: curses.window, x=0, y=0, text="", pre=INF):
     """Custom print function in style of the terminal onto a specific screen, 
     taking a 3rd parameter which defines the icon between the square brackets. """
 
@@ -49,7 +51,7 @@ def cprint(screen, x=0, y=0, text="", pre=INF):
     return
 
 
-def cinput(screen, x=0, y=0, text="", pwd=False):
+def cinput(screen: curses.window, x=0, y=0, text="", pwd=False):
     """Custom input function in style of the terminal in a specific screen,
     taking a 3rd parameter checking if the input is going to be a password,
     if so, the input will be hidden while typed."""
@@ -69,7 +71,7 @@ def new_msg(sender: User, msg_type: str, content: str = "", receiver: User = Non
 
 
 
-def check_screen_size(stdscr):
+def check_screen_size(stdscr: curses.window):
     """To be ran by a thread keeping check of the terminal size.
     Will resize the screens if it does change"""
 
@@ -83,7 +85,7 @@ def check_screen_size(stdscr):
             resize_and_setup(stdscr)
 
 
-def set_sizes(stdscr):
+def set_sizes(stdscr: curses.window):
     """Sets the size values of all the pads and screens based on the current terminal size"""
 
     global HEIGHT, WIDTH, IS_HEIGHT, IS_WIDTH, OI_HEIGHT, OI_WIDTH, II_HEIGHT, II_WIDTH
@@ -99,7 +101,7 @@ def set_sizes(stdscr):
     return
 
 
-def create_screens(stdscr):
+def create_screens(stdscr: curses.window):
     """Creates the physical screens that the application will be made out of"""
 
     global HEIGHT, WIDTH, IS_HEIGHT, IS_WIDTH, OI_HEIGHT, OI_WIDTH, II_HEIGHT, II_WIDTH
@@ -140,7 +142,7 @@ def return_credentials_file():
 
 
 
-def setup_login_screen(stdscr):
+def setup_login_screen(stdscr: curses.window):
     """Sets up screens by clearing and adding borders etc"""
 
     global HEIGHT, WIDTH, LINES, screen_inner
@@ -167,16 +169,16 @@ def setup_login_screen(stdscr):
 
 
 
-def get_login_credentials():
+def get_login_credentials(screen: curses.window):
     """Gather login credentials and return them in a Message to run with run_login"""
 
-    global SIGNUP, LINES, screen_inner
+    global SIGNUP, LINES
     
     creds = return_credentials_file()
     if creds: return Message(creds, "LOGIN")
 
     while True:
-        login_type = cinput(screen_inner, 0, LINES, "Do you want to login or register? (l/r): ")
+        login_type = cinput(screen, 0, LINES, "Do you want to login or register? (l/r): ")
         if login_type == "l":
             SIGNUP = False
             break
@@ -184,20 +186,20 @@ def get_login_credentials():
             SIGNUP = True
             break
         else:
-            cprint(screen_inner, 0, LINES, "Invalid input. Try again.", ERR)
+            cprint(screen, 0, LINES, "Invalid input. Try again.", ERR)
             continue
     
-    user = cinput(screen_inner, 0, LINES, "Enter your name: ")
-    pwd = cinput(screen_inner, 0, LINES, "Enter your password: ", pwd=True)
+    user = cinput(screen, 0, LINES, "Enter your name: ")
+    pwd = cinput(screen, 0, LINES, "Enter your password: ", pwd=True)
 
     while SIGNUP:
         if pwd == "": 
-            pwd = cinput(screen_inner, 0, LINES, "Enter your password: ", pwd=True)
+            pwd = cinput(screen, 0, LINES, "Enter your password: ", pwd=True)
         
-        pwd_check = cinput(screen_inner, 0, LINES, "Confirm your password: ", pwd=True)
+        pwd_check = cinput(screen, 0, LINES, "Confirm your password: ", pwd=True)
         
         if pwd != pwd_check:
-            cprint(screen_inner, 0, LINES, "Passwords do not match. Try again.", ERR)
+            cprint(screen, 0, LINES, "Passwords do not match. Try again.", ERR)
             pwd = ""
             continue
         else: 
@@ -206,7 +208,7 @@ def get_login_credentials():
     pwd = sha256(pwd.encode("utf-8")).hexdigest()
 
     if creds == None:
-        remember = cinput(screen_inner, 0, LINES, "Do you want to remember your login details? ([y]es/[n]o/[N]ever): ")
+        remember = cinput(screen, 0, LINES, "Do you want to remember your login details? ([y]es/[n]o/[N]ever): ")
         create_credentials_file(User(user, pwd), remember)
 
     msg_type = "SIGNUP" if SIGNUP else "LOGIN"
@@ -214,7 +216,7 @@ def get_login_credentials():
     
 
 
-def run_login(msg: Message):
+def run_login(screen: curses.window, msg: Message):
     """Connects with the server and tries to login with the given credentials.\n
     Also handles any errors that might be returned when attempting login."""
 
@@ -227,15 +229,15 @@ def run_login(msg: Message):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         LINES += 1
-        cprint(screen_inner, 0, LINES, f"Connecting to {HOST}:{PORT}...", INF)
+        cprint(screen, 0, LINES, f"Connecting to {HOST}:{PORT}...", INF)
         
         try:    
             s.connect((HOST, PORT))
         except ConnectionRefusedError:
-            cprint(screen_inner, 0, LINES, f"Connection to {HOST}:{PORT} failed. Server is most likely offline.", ERR)
-            return False
+            cprint(screen, 0, LINES, f"Connection to {HOST}:{PORT} failed. Server is most likely offline.", ERR)
+            return (None, None)
         
-        cprint(screen_inner, 0, LINES, "Connected.", SUC)
+        cprint(screen, 0, LINES, "Connected.", SUC)
 
         s.sendall(string_bytes)
         data = s.recv(4096)
@@ -253,7 +255,7 @@ def run_login(msg: Message):
             else:
                 s.close()
                 if response.message_type == "BAD-PASS":
-                    pwd = cinput(screen_inner, 0, LINES, 'Password is incorrect, try again: ', pwd=True)
+                    pwd = cinput(screen, 0, LINES, 'Password is incorrect, try again: ', pwd=True)
                     user.password = sha256(pwd.encode("utf-8")).hexdigest()
                     string_bytes = new_msg(user, msg.message_type)
                     continue
@@ -262,12 +264,12 @@ def run_login(msg: Message):
                 if response.message_type == "BAD-RQST-BODY": err_msg = "invalid"
                 elif response.message_type == "UNKNOWN":     err_msg = "not known"
                 else:                                        err_msg = "taken"
-                username = cinput(screen_inner, 0, LINES, f'Username is {err_msg}, please enter another: ')
+                username = cinput(screen, 0, LINES, f'Username is {err_msg}, please enter another: ')
                 user.name = username
                 string_bytes = new_msg(user, msg.message_type)
     
     LINES += 1
-    cprint(screen_inner, 0, LINES, f"Welcome {user.name}!", SUC)
+    cprint(screen, 0, LINES, f"Welcome {user.name}!", SUC)
     time.sleep(1)
     return (s, user)
 
@@ -316,11 +318,11 @@ def print_help(screen: curses.window, x: Callable[[str], int], instructions: lis
     if instructions == []: 
         instructions = [
         '[+] HackerChat help section [+]',
-        '!h[elp]: Prints this help message.',
-        '!q[uit]: Quits the program.',
-        '!o[nline]: Prints all online users.',
-        '!cl[ear]: Clears the screen.'
-        '!chat <username/groupname>: Opens specified chat.',
+        '[+] !h[elp]: Prints this help message.',
+        '[+] !q[uit]: Quits the program.',
+        '[+] !o[nline]: Prints all online users.',
+        '[+] !cl[ear]: Clears the screen.'
+        '[+] !chat <username/groupname>: Opens specified chat.',
     ]
     
     for line in instructions:
@@ -341,6 +343,8 @@ def data_receive(s, host_port):
             break
         
         msg = Message(**json.loads(decoded_data))
+        
+        to_print = ""
 
         if msg.message_type == "UNKNOWN":
             cprint(screen_inner, 0, LINES, "Data is unknown", ERR)
@@ -349,20 +353,21 @@ def data_receive(s, host_port):
                 s.getsockname()
             except OSError:
                 break
-            cprint(screen_inner, 0, LINES, decoded_data[:len(decoded_data)-1], SER)
+            to_print = decoded_data[:len(decoded_data)-1]
             
         elif msg.message_type == "SEND-OK":
-            cprint(screen_inner, 0, LINES, data, SER)
+            to_print = decoded_data
         
         elif msg.message_type == "DELIVERY":
             cprint(screen_inner, 0, LINES, "Data is delivered", SER)
-            cprint(screen_inner, 0, LINES, msg.content)
+            to_print = msg.content
             
         elif msg.message_type == "WHO-OK":
-            cprint(screen_inner, 0, LINES, f"Online: {msg.content}", SER)
+            to_print = f"Online: {msg.content}"
         else:
-            cprint(f"Random data received: {msg.content}", SER)
+            to_print = f"Random data received: {msg.content}"
 
+        cprint(screen_inner, 0, LINES, to_print)
 
 def print_chat_messages(screen: curses.window, user: User, receiver: User = User('')):
     """Prints chat messages to the screen"""
@@ -372,8 +377,9 @@ def print_chat_messages(screen: curses.window, user: User, receiver: User = User
     for chats in os.listdir('chats'):    
         if user.name in chats and receiver.name in chats:
             with open(f'chats/{chats}', 'r') as f:
-                for message in f:
-                    msg = ChatMessage(**json.loads(message, cls=ChatMessageDecoder))
+                chat = Chat(**json.load(f))
+                for msg in chat.messages:
+                    msg = ChatMessage(**msg)
                     pre = lambda s, f="", b="": f"{f}[{s} {msg.sender} {msg.time_as_string()}]{b}"
 
                     msg_list = msg.content.split()
@@ -421,8 +427,6 @@ def run_home(s: socket.socket, user: User):
     t = threading.Thread(target=data_receive, args=(s, host_port), daemon=True)
     t.start()
 
-    
-
     while True:
         input_inner.addstr(0, 0, "$", curses.A_BOLD)
         msg = input_inner.getstr(0,2).decode("utf-8")
@@ -464,7 +468,7 @@ def run_home(s: socket.socket, user: User):
         time.sleep(1/100)
 
 
-def resize_and_setup(stdscr):
+def resize_and_setup(stdscr: curses.window):
     """Resizes all the screens and pads and sets up the new ones"""
 
     global HEIGHT, WIDTH, IS_HEIGHT, IS_WIDTH, OI_HEIGHT, OI_WIDTH, II_HEIGHT, II_WIDTH
@@ -480,27 +484,40 @@ def resize_and_setup(stdscr):
     input_outer.mvwin(HEIGHT-(OI_HEIGHT)-1, 2)
     input_inner.mvwin(HEIGHT-(OI_HEIGHT), 3)
 
+    stdscr.border("|", "|", "-", "-", "+", "+", "+", "+")
+    input_inner.border("|", "|", "-", "-", "+", "+", "+", "+")
+
     screen_inner.refresh()
     input_outer.refresh()
     input_inner.refresh()
     return
 
 
-def main(stdscr):
+def main(stdscr: curses.window):
     """Main function"""
 
-    global HEIGHT, WIDTH, LINES, screen_inner, input_outer, input_inner    
+    global screen_inner
     
+    ## Setup ##
+
+    ### Run thread to resize screens if needed ###
     t = threading.Thread(target=check_screen_size, args=(stdscr,), daemon=True)
     t.start()
     
-    set_bg_color(stdscr)
+    ### Setup screens ###
+    set_bg_color(200, 0, 200)
     create_screens(stdscr)
+
+    ### Login screen ###
     setup_login_screen(stdscr)
-    login = get_login_credentials()
-    (s, user) = run_login(login)
+    login = get_login_credentials(screen_inner)
+    (s, user) = run_login(screen_inner, login)
+    if not s and not user: stdscr.getch(); return
+    
+    ### Home screen ###
     setup_home_screen()
     run_home(s, user)
+    
     stdscr.getch()
     return
 
