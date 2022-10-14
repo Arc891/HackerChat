@@ -17,15 +17,15 @@ class ChatMessage(object):
         return Message(User(self.sender), "CHAT", self.content, User(self.receiver))
 
     def time_as_string(self):
-        def add_zero(n):
+        def add_zero(n: int):
             if n < 10:
                 return f"0{n}"
-            return n
+            return str(n)
         
         if not isinstance(self.time, time.struct_time):
             self.time = time.strptime(str(self.time[:-1]), "[%Y, %m, %d, %H, %M, %S, %w, %j]")
         
-        return f"{add_zero(self.time.tm_hour)}:{add_zero(self.time.tm_min):{add_zero(self.time.tm_sec)}}"
+        return f"{add_zero(self.time.tm_hour)}:{add_zero(self.time.tm_min)}:{add_zero(self.time.tm_sec)}"
 
     def to_json(self):
         return json.dumps(self, default=lambda o: o.__dict__, 
