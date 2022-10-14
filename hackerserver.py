@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
-from Classes.chatmessage import ChatMessage
+from Classes.chatmessage import *
 from Classes.user import *
 from Classes.message import *
+from Classes.chat import *
 import os
 import time
 import socket
@@ -105,6 +106,17 @@ def client_setup(connection: socket.socket, address):
         return
     
 
+def create_chat_name(n1: str, n2: str):
+    """Takes 2 usernames and returns them in alphabetical order"""
+    ln1 = n1.lower()
+    ln2 = n2.lower()
+    if ln1[0] < ln2[0]:
+        return n1, n2
+    elif ln1[0] > ln2[0]:
+        return n2, n1
+    else:
+        return create_chat_name(n1[1:], n2[1:])
+
 def client_thread(connection: socket.socket, address, user: User):
     global ONLINE
 
@@ -141,15 +153,21 @@ def client_thread(connection: socket.socket, address, user: User):
                     raise UNKNOWN()
                 else:
                     receiver = User.load(receiver)
-                    for chat in os.listdir("chats"):
-                        if receiver.name in chat and user.name in chat:
-                            with open(f"chats/{chat}", "a") as f:
-                                f.write(f"{ChatMessage(user.name, receiver.name, time.localtime(), send_message).to_json()}\n")
-                            f.close()
+                    u1, u2 = create_chat_name(user.name, receiver.name)
+                    
+                    chat_name = f"{u1}-{u2}"
 
-                            connection.send(new_msg("SEND-OK"))
-                            if receiver.fd != 0:
-                                socket.fromfd(receiver.fd, socket.AF_INET, socket.SOCK_STREAM).send(new_msg("DELIVERY", sender=user, content=send_message))
+                    if not os.path.exists(f"chats/{chat_name}.json"):
+                        chat = Chat(f"{chat_name}", [user, receiver], []).save()
+                    
+                    with open(f"chats/{chat_name}.json", "r") as f:
+                        chat = Chat(**json.load(f))
+                        add_msg = ChatMessage(user.name, receiver.name, time.localtime(), send_message)
+                        chat.add_message(add_msg)
+
+                    connection.send(new_msg("SEND-OK"))
+                    if receiver.fd != 0:
+                        socket.fromfd(receiver.fd, socket.AF_INET, socket.SOCK_STREAM).send(new_msg("DELIVERY", sender=user, content=send_message))
 
             elif msg.message_type == "LOGOUT":
                 disconnect_client(connection, user)
