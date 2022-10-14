@@ -13,11 +13,13 @@ class Chat:
     def save(self):
         with open(f"chats/{self.name}.json", "w") as f:
             f.write(self.to_json())
-        f.close()
-        return True
-
-
+        return self
     
+    def add_message(self, message: ChatMessage):
+        self.messages.append(message)
+        self.save()
+        return self
+
     def set_info(self, info):
         self.info = info
         self.save()
