@@ -347,13 +347,8 @@ def data_receive(s: socket.socket, host_port):
         to_print = ""
 
         if msg.message_type == "UNKNOWN":
-            cprint(screen_inner, 0, LINES, "Data is unknown", ERR)
-            time.sleep(0.1)
-            try:
-                s.getsockname()
-            except OSError:
-                break
-            to_print = decoded_data[:len(decoded_data)-1]
+            cprint(screen_inner, 0, LINES, "Data is unknown, check if you entered your command parameters correctly", ERR)
+            continue
             
         elif msg.message_type == "SEND-OK":
             to_print = decoded_data
@@ -502,6 +497,7 @@ def resize_and_setup(stdscr: curses.window):
     stdscr.border("|", "|", "-", "-", "+", "+", "+", "+")
     input_inner.border("|", "|", "-", "-", "+", "+", "+", "+")
 
+    stdscr.refresh()
     screen_inner.refresh()
     input_outer.refresh()
     input_inner.refresh()
@@ -520,7 +516,7 @@ def main(stdscr: curses.window):
     t.start()
     
     ### Setup screens ###
-    set_bg_color(200, 200, 200)
+    curses.use_default_colors()
     create_screens(stdscr)
 
     ### Login screen ###
