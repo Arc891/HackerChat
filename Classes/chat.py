@@ -1,7 +1,6 @@
 import json
-from Classes.user import *
-from Classes.message import *
-from Classes.chatmessage import *
+from Classes.user import User
+from Classes.chatmessage import ChatMessage
 
 class Chat:
     def __init__(self, name: str, users: list[User], messages: list[ChatMessage], info: str = ""):
@@ -18,7 +17,6 @@ class Chat:
     def load(name: str):
         with open(f"chats/{name}.json", "r") as f:
             chat = Chat(**json.loads(f.read()))
-        f.close()
         return chat
 
     def add_message(self, message: ChatMessage):
