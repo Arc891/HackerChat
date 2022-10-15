@@ -15,6 +15,12 @@ class Chat:
             f.write(self.to_json())
         return self
     
+    def load(name: str):
+        with open(f"chats/{name}.json", "r") as f:
+            chat = Chat(**json.loads(f.read()))
+        f.close()
+        return chat
+
     def add_message(self, message: ChatMessage):
         self.messages.append(message)
         self.save()
