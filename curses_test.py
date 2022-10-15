@@ -39,14 +39,16 @@ def set_bg_color(r: int, g: int, b: int):
         curses.init_color(0, r, g, b)
 
 
-def cprint(screen: curses.window, x=0, y=0, text="", pre=INF):
+def cprint(screen: curses.window, x=0, y=0, text="", pre=INF, stage=False):
     """Custom print function in style of the terminal onto a specific screen, 
-    taking a 3rd parameter which defines the icon between the square brackets. """
+    taking a 'pre' parameter which defines the icon between the square brackets.\n
+    Also supports a 'stage' parameter which if set to True will stage the text 
+    to be printed on the next manual refresh."""
 
     global LINES
     to_print = f"{f'[{pre}] ' if pre else NON}{text}"
     screen.addstr(y, x, to_print)
-    screen.refresh()
+    if not stage: screen.refresh()
     if y == LINES: LINES += 1
     return
 
@@ -326,16 +328,17 @@ def print_help(screen: curses.window, x: Callable[[str], int], instructions: lis
     ]
     
     for line in instructions:
-        cprint(screen, x(line), LINES, line, NON)
+        cprint(screen, x(line), LINES, line, NON, True)
 
     screen.refresh()
     return
 
 
-def data_receive(s, host_port):
+def data_receive(s: socket.socket, host_port):
     """Receives data from the server and prints it to the screen"""
 
     while s.connect_ex(host_port) != 9:
+        global LINES
         data = s.recv(4096)
         decoded_data = data.decode("utf-8")
         
@@ -361,6 +364,10 @@ def data_receive(s, host_port):
         elif msg.message_type == "DELIVERY":
             cprint(screen_inner, 0, LINES, "Data is delivered", SER)
             to_print = msg.content
+
+        elif msg.message_type == "CHAT-OK":
+            print_chat_messages(screen_inner, msg.content, User(**msg.receiver))
+            continue
             
         elif msg.message_type == "WHO-OK":
             to_print = f"Online: {msg.content}"
@@ -369,52 +376,45 @@ def data_receive(s, host_port):
 
         cprint(screen_inner, 0, LINES, to_print)
 
-def print_chat_messages(screen: curses.window, user: User, receiver: User = User('')):
+def print_chat_messages(screen: curses.window, content: str, user: User):
     """Prints chat messages to the screen"""
 
     global LINES, HEIGHT, WIDTH
 
-    for chats in os.listdir('chats'):    
-        if user.name in chats and receiver.name in chats:
-            with open(f'chats/{chats}', 'r') as f:
-                chat = Chat(**json.load(f))
-                for msg in chat.messages:
-                    msg = ChatMessage(**msg)
-                    pre = lambda s, f="", b="": f"{f}[{s} {msg.sender} {msg.time_as_string()}]{b}"
-
-                    msg_list = msg.content.split()
-                    j = 0
-
-                    if msg.sender != user.name:
-                        for i in range(len(msg_list)):
-                            rest = ' '.join(msg_list[j:]) + pre('<', f=' ')
-                            if len(rest) <= IS_WIDTH-10:
-                                screen.addstr(LINES, IS_WIDTH-len(rest), rest)
-                                LINES += 1
-                                break
-                            if len(' '.join(msg_list[j:i])) > IS_WIDTH-10:
-                                screen.addstr(LINES, 10, ' '.join(msg_list[j:i-1]))
-                                LINES += 1
-                                j = i-1
-                        
-                    else: 
-                        for i in range(len(msg_list)):
-                            if i+1 == len(msg_list):
-                                add = pre('>', b=' ') if j == 0 else ""
-                                screen.addstr(LINES, 0, add + ' '.join(msg_list[j:]))
-                                LINES += 1
-                                break
-                            if j == 0:
-                                if i+1 < len(msg_list):
-                                    if len(pre('>', b=' ') + ' '.join(msg_list[j:i+1])) > IS_WIDTH-10:
-                                        screen.addstr(LINES, 0, pre('>', b=' ') + ' '.join(msg_list[j:i+1]))
-                                        LINES += 1
-                                        j = i+1
-                            elif len(' '.join(msg_list[j:i])) > IS_WIDTH-10:
-                                screen.addstr(LINES, 0, ' '.join(msg_list[j:i-1]))
-                                LINES += 1
-                                j = i-1
+    chat = Chat(**json.loads(content))
     
+    for msg in chat.messages:
+        msg = ChatMessage(**msg)
+        pre = lambda s, f="", b="": f"{f}[{s} {msg.sender} {msg.time_as_string()}]{b}"
+
+        msg_list = msg.content.split()
+        j = 0
+        
+        if msg.sender == user.name:
+            for i in range(len(msg_list)):
+                rest = ' '.join(msg_list[j:]) + pre('<', f=' ')
+                if len(rest) <= IS_WIDTH-10:
+                    cprint(screen, IS_WIDTH-len(rest), LINES, rest, NON, True)
+                    break
+                if len(' '.join(msg_list[j:i])) > IS_WIDTH-10:
+                    cprint(screen, 10, LINES, ' '.join(msg_list[j:i-1]), NON, True)
+                    j = i-1
+            
+        else: 
+            for i in range(len(msg_list)):
+                if i+1 == len(msg_list):
+                    add = pre('>', b=' ') if j == 0 else ""
+                    cprint(screen, 0, LINES, add + ' '.join(msg_list[j:]), NON, True)
+                    break
+                if j == 0:
+                    if i+1 < len(msg_list):
+                        if len(pre('>', b=' ') + ' '.join(msg_list[j:i+1])) > IS_WIDTH-10:
+                            cprint(screen, 0, LINES, pre('>', b=' ') + ' '.join(msg_list[j:i+1]), NON, True)
+                            j = i+1
+                elif len(' '.join(msg_list[j:i])) > IS_WIDTH-10:
+                    cprint(screen, 0, LINES, ' '.join(msg_list[j:i-1]), NON, True)
+                    j = i-1
+
     screen.refresh()
     return
 
@@ -449,8 +449,13 @@ def run_home(s: socket.socket, user: User):
             screen_inner.clear()
             setup_home_screen()
 
-        elif msg == "!chat":
-            print_chat_messages(screen_inner, user=user)
+        elif msg.startswith("!read"):
+            try:
+                msg = msg.split()
+                to_send = new_msg(user, "CHAT", receiver=User(msg[1]))
+                s.sendall(to_send)
+            except IndexError:
+                cprint(screen_inner, 0, LINES, "Please enter a username to view the chat with", ERR)
 
         elif msg.startswith("!chat"):
             try:
@@ -505,7 +510,7 @@ def main(stdscr: curses.window):
     t.start()
     
     ### Setup screens ###
-    set_bg_color(200, 0, 200)
+    set_bg_color(200, 200, 200)
     create_screens(stdscr)
 
     ### Login screen ###

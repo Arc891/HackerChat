@@ -169,6 +169,14 @@ def client_thread(connection: socket.socket, address, user: User):
                     if receiver.fd != 0:
                         socket.fromfd(receiver.fd, socket.AF_INET, socket.SOCK_STREAM).send(new_msg("DELIVERY", sender=user, content=send_message))
 
+            elif msg.message_type == "CHAT":
+                sender = User(**msg.sender)
+                receiver = User(**msg.receiver)
+                u1, u2 = create_chat_name(sender.name, receiver.name)
+                chat = Chat.load(f"{u1}-{u2}")
+                print(f"Sending: {chat}")
+                connection.send(new_msg("CHAT-OK", content=chat.to_json(), receiver=sender))
+
             elif msg.message_type == "LOGOUT":
                 disconnect_client(connection, user)
                 print("Client disconnected")
