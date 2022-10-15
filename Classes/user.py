@@ -13,19 +13,22 @@ class User(object):
     def __repr__(self) -> str:
         return self.to_json()
 
-    def load(self):
-        with open(f"users/{self.name}.json", "r") as f:
-            user = User(**json.loads(f.read()))
-        return user
+    def load(name: str):
+        if os.path.isfile(f"users/{name}.json"):
+            with open(f"users/{name}.json", "r") as f:
+                user = User(**json.load(f))
+            return user
+        else:
+            return None
 
     def save(self):
         with open(f"users/{self.name}.json", "w") as f:
             f.write(self.to_json())
-        return True
+        return self
 
     def verify_login(self, password):
         with open(f"users/{self.name}.json", "r") as f:
-            user = User(**json.loads(f.read()))
+            user = User(**json.load(f))
         return user.password == password
 
     def set_status(self, status):
