@@ -7,6 +7,7 @@ import threading
 import time
 import json
 from typing import Callable
+from typing import Literal
 from Classes.chatmessage import ChatMessage
 from Classes.user import User
 from Classes.message import Message
@@ -39,21 +40,23 @@ def set_bg_color(r: int, g: int, b: int):
         curses.init_color(0, r, g, b)
 
 
-def cprint(screen: curses.window, x=0, y=0, text="", pre=INF, stage=False):
+def cprint(screen: curses.window, x: int=0, y: int=0, text: str="", pre: str=INF, stage: bool=False):
     """Custom print function in style of the terminal onto a specific screen, 
     taking a 'pre' parameter which defines the icon between the square brackets.\n
     Also supports a 'stage' parameter which if set to True will stage the text 
     to be printed on the next manual refresh."""
 
     global LINES
-    to_print = f"{f'[{pre}] ' if pre else NON}{text}"
+    add_front = f'[{pre}] ' if pre else NON
+    text = text.strip('\n')
+    to_print = f"{add_front}{text}"
     screen.addstr(y, x, to_print)
     if not stage: screen.refresh()
     if y == LINES: LINES += 1
     return
 
 
-def cinput(screen: curses.window, x=0, y=0, text="", pwd=False):
+def cinput(screen: curses.window, x: int=0, y: int=0, text: str="", pwd: bool=False):
     """Custom input function in style of the terminal in a specific screen,
     taking a 3rd parameter checking if the input is going to be a password,
     if so, the input will be hidden while typed."""
@@ -84,7 +87,9 @@ def check_screen_size(stdscr: curses.window):
     while True:
         w, h = os.get_terminal_size()
         if h != HEIGHT or w != WIDTH:
-            resize_and_setup(stdscr)
+            cprint(stdscr, 0, 0, "Resizing...", INF)
+    #         curses.resizeterm(h, w)
+            # resize_and_setup(stdscr)
 
 
 def set_sizes(stdscr: curses.window):
@@ -120,7 +125,7 @@ def create_screens(stdscr: curses.window):
 
 
 
-def create_credentials_file(user: User, remember="n"):
+def create_credentials_file(user: User, remember: Literal["y", "n", "N"]="n"):
     with open("config/credentials.txt", "w") as f:
         f.write(f"username={user.name}\n")
         f.write(f"password={user.password}\n")
@@ -209,6 +214,8 @@ def get_login_credentials(screen: curses.window):
 
     if creds == None:
         remember = cinput(screen, 0, LINES, "Do you want to remember your login details? ([y]es/[n]o/[N]ever): ")
+        while remember not in ["y", "n", "N"]:
+            remember = cinput(screen, 0, LINES, f"Input \"{remember}\" not recognized. Remember your login details? ([y]es/[n]o/[N]ever): ")
         create_credentials_file(User(user, pwd), remember)
 
     msg_type = "SIGNUP" if SIGNUP else "LOGIN"
@@ -300,8 +307,8 @@ def setup_home_screen():
     
     print_help(screen_inner, lambda x: (WIDTH-len(x))//2-1, instructions)
 
-    screen_inner.addstr(LINES,0, "-"*(WIDTH-4))
-    LINES += 1
+    cprint(screen_inner, 0, LINES, "-"*(WIDTH-4), NON)
+    cprint(screen_inner, 0, LINES, f"{screen_inner.__dir__} {curses.newpad(1000,IS_WIDTH).__dir__}", NON)
 
     screen_inner.refresh()
     input_outer.refresh()
@@ -416,10 +423,11 @@ def refresh_screens(stdscr: curses.window):
 
     global HEIGHT, WIDTH, LINES, screen_inner, input_outer, input_inner
 
-    stdscr.refresh()
-    screen_inner.refresh()
-    input_outer.refresh()
-    input_inner.refresh()
+    stdscr.noutrefresh()
+    screen_inner.noutrefresh()
+    input_outer.noutrefresh()
+    input_inner.noutrefresh()
+    curses.doupdate()
     return
 
 def run_home(stdscr: curses.window, s: socket.socket, user: User):
