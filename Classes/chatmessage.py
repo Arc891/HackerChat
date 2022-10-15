@@ -1,7 +1,7 @@
 import json
 import time
-from Classes.user import *
-from Classes.message import *
+from Classes.user import User
+from Classes.message import Message
 
 class ChatMessage(object):
     def __init__(self, sender: str, receiver: str, time: time.struct_time, content: str):
