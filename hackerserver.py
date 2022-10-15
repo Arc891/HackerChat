@@ -1,23 +1,16 @@
 #!/usr/bin/env python3
 
-from Classes.chatmessage import *
-from Classes.user import *
-from Classes.message import *
-from Classes.chat import *
+from Classes.chatmessage import ChatMessage
+from Classes.user import User
+from Classes.message import Message
+from Classes.chat import Chat
+from Classes.exceptions import *
 import os
 import time
 import socket
 import threading
 import json
 import string
-
-class BAD_RQST_BODY(Exception):
-    def __init__(self):
-        pass
-
-class UNKNOWN(Exception):
-    def __init__(self):
-        pass
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -34,16 +27,16 @@ ONLINE = 0
 print("Server turned ON")
 server.listen(100)
 
-def new_msg(msg_type, sender=None, content="", receiver=None):
+def new_msg(msg_type: str, sender: User=None, content: str="", receiver: User=None):
     """Quick constructor for new messages to sent to the server"""
     return Message(sender, msg_type, content=content, receiver=receiver).to_json().encode('utf-8')
 
-def error_handler(connection, address, err_type):
+def error_handler(connection: socket.socket, address, err_type: str):
     print(f"Exception {err_type} sent to {address}.")
     connection.send(new_msg(err_type))
     return
 
-def disconnect_client(connection, user): 
+def disconnect_client(user): 
     global ONLINE
     user = user.set_status("offline").set_address(None).set_fd(0)
     ONLINE -= 1
@@ -152,7 +145,7 @@ def client_thread(connection: socket.socket, address, user: User):
                 if not os.path.exists(f"users/{receiver.name}.json"):
                     raise UNKNOWN()
                 else:
-                    receiver = User.load(receiver)
+                    receiver = User.load(receiver.name)
                     u1, u2 = create_chat_name(user.name, receiver.name)
                     
                     chat_name = f"{u1}-{u2}"
@@ -184,11 +177,11 @@ def client_thread(connection: socket.socket, address, user: User):
                 
                 chat = Chat.load(chat_name)
                 
-                print(f"Sending: {chat}")
+                print(f"Sending: {chat.name}: {chat.info}")
                 connection.send(new_msg("CHAT-OK", content=chat.to_json(), receiver=sender))
 
             elif msg.message_type == "LOGOUT":
-                disconnect_client(connection, user)
+                disconnect_client(user)
                 print("Client disconnected")
                 return
 
@@ -196,7 +189,7 @@ def client_thread(connection: socket.socket, address, user: User):
                 break
             
             else:
-                raise BAD_RQST_BODY()
+                raise BAD_RQST_HDR()
 
         except UNKNOWN:
             print("Exception UNKNOWN sent")
@@ -205,13 +198,17 @@ def client_thread(connection: socket.socket, address, user: User):
         except BAD_RQST_BODY:
             print("Exception BAD-RQST-BODY sent")
             connection.send(new_msg("BAD-RQST-BODY"))
+        
+        except BAD_RQST_HDR:
+            print("Exception BAD-RQST-HDR sent")
+            connection.send(new_msg("BAD-RQST-HDR"))
 
         except ConnectionResetError:
-            disconnect_client(connection, user)
+            disconnect_client(user)
             print("Client disconnected forcibly")
             return
     
-    disconnect_client(connection, user)
+    disconnect_client(user)
     print("Client disconnected")
     return
 
