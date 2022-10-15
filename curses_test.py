@@ -125,7 +125,6 @@ def create_credentials_file(user: User, remember="n"):
         f.write(f"username={user.name}\n")
         f.write(f"password={user.password}\n")
         f.write(f"remember={remember}\n")
-    f.close()
 
 def return_credentials_file():
     if os.path.isfile("config/credentials.txt"):
@@ -133,7 +132,6 @@ def return_credentials_file():
         with open("config/credentials.txt", "r") as f:
             for _ in range(3):
                 vals.append(f.readline().strip().split("=")[1])
-        f.close()
         if vals[2] == "y":
             return User(vals[0], vals[1]) 
         elif vals[2] == "n":
@@ -299,7 +297,6 @@ def setup_home_screen():
         for i, line in enumerate(f):
             screen_inner.addstr(i, (WIDTH-len(line))//2-1, line[:-1], curses.A_BOLD)
             LINES += 1
-        f.close()
     
     print_help(screen_inner, lambda x: (WIDTH-len(x))//2-1, instructions)
 
@@ -419,7 +416,18 @@ def print_chat_messages(screen: curses.window, content: str, user: User):
     return
 
 
-def run_home(s: socket.socket, user: User):
+def refresh_screens(stdscr: curses.window):
+    """Refreshes the screens"""
+
+    global HEIGHT, WIDTH, LINES, screen_inner, input_outer, input_inner
+
+    stdscr.refresh()
+    screen_inner.refresh()
+    input_outer.refresh()
+    input_inner.refresh()
+    return
+
+def run_home(stdscr: curses.window, s: socket.socket, user: User):
     """Runs the main screen of the chat application"""
 
     global LINES, screen_inner, input_inner, input_outer, HEIGHT, WIDTH
@@ -445,8 +453,10 @@ def run_home(s: socket.socket, user: User):
         elif msg == "!o" or msg == "!online":
             s.sendall(new_msg(user, "WHO"))
 
+        elif msg == "!rf" or msg == "!refresh":
+            refresh_screens(stdscr)
+
         elif msg == "!cl" or msg == "!clear":
-            screen_inner.clear()
             setup_home_screen()
 
         elif msg.startswith("!read"):
@@ -469,7 +479,7 @@ def run_home(s: socket.socket, user: User):
             cprint(screen_inner, 0, LINES, "Unknown command. Type !help to see all available commands.", ERR)
         
         input_inner.clear()
-        input_inner.refresh()
+        refresh_screens(stdscr)
         time.sleep(1/100)
 
 
@@ -521,9 +531,10 @@ def main(stdscr: curses.window):
     
     ### Home screen ###
     setup_home_screen()
-    run_home(s, user)
+    run_home(stdscr, s, user)
     
     stdscr.getch()
     return
 
-wrapper(main)
+if __name__ == '__main__':
+    wrapper(main)
