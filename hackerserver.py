@@ -172,8 +172,18 @@ def client_thread(connection: socket.socket, address, user: User):
             elif msg.message_type == "CHAT":
                 sender = User(**msg.sender)
                 receiver = User(**msg.receiver)
+
+                if not os.path.exists(f"users/{receiver.name}.json"):
+                    raise UNKNOWN()
+            
                 u1, u2 = create_chat_name(sender.name, receiver.name)
-                chat = Chat.load(f"{u1}-{u2}")
+                chat_name = f"{u1}-{u2}"
+                
+                if not os.path.exists(f"chats/{chat_name}.json"):
+                    raise BAD_RQST_BODY()
+                
+                chat = Chat.load(chat_name)
+                
                 print(f"Sending: {chat}")
                 connection.send(new_msg("CHAT-OK", content=chat.to_json(), receiver=sender))
 
@@ -184,6 +194,9 @@ def client_thread(connection: socket.socket, address, user: User):
 
             elif not data:
                 break
+            
+            else:
+                raise BAD_RQST_BODY()
 
         except UNKNOWN:
             print("Exception UNKNOWN sent")
