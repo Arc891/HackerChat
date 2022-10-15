@@ -26,22 +26,22 @@ class User(object):
             f.write(self.to_json())
         return self
 
-    def verify_login(self, password):
+    def verify_login(self, password: str):
         with open(f"users/{self.name}.json", "r") as f:
             user = User(**json.load(f))
         return user.password == password
 
-    def set_status(self, status):
+    def set_status(self, status: Literal['offline', 'online']):
         self.status = status
         self.save()
         return self
 
-    def set_address(self, address):
+    def set_address(self, address: tuple[str, int]):
         self.address = address
         self.save()
         return self
 
-    def set_fd(self, fd):
+    def set_fd(self, fd: int):
         self.fd = fd
         self.save()
         return self
