@@ -15,6 +15,8 @@ class Message(object):
         return json.dumps(self, default=lambda o: o.__dict__, 
             sort_keys=True, indent=4)
 
+    def from_json(message: str):
+        return Message(**json.loads(message, cls=MessageDecoder))
 
 """
 Message format:
@@ -33,7 +35,8 @@ Message format:
 }
 
 
-class Decoder(json.JSONDecoder):
+"""
+class MessageDecoder(json.JSONDecoder):
     def __init__(self, *args, **kwargs):
         json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
     
@@ -43,4 +46,3 @@ class Decoder(json.JSONDecoder):
         if 'receiver' in dct:
             dct['receiver'] = User(**dct['receiver'])
         return dct
-"""
