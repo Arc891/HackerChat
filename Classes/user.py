@@ -16,19 +16,16 @@ class User(object):
     def load(self):
         with open(f"users/{self.name}.json", "r") as f:
             user = User(**json.loads(f.read()))
-        f.close()
         return user
 
     def save(self):
         with open(f"users/{self.name}.json", "w") as f:
             f.write(self.to_json())
-        f.close()
         return True
 
     def verify_login(self, password):
         with open(f"users/{self.name}.json", "r") as f:
             user = User(**json.loads(f.read()))
-        f.close()
         return user.password == password
 
     def set_status(self, status):
@@ -56,5 +53,4 @@ class User(object):
             if file.endswith(".json"):
                 with open(f"users/{file}", "r") as f:
                     users.append(User(**json.loads(f.read())))
-                f.close()
         return users
