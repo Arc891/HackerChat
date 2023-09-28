@@ -308,7 +308,7 @@ def setup_home_screen():
     print_help(screen_inner, lambda x: (WIDTH-len(x))//2-1, instructions)
 
     cprint(screen_inner, 0, LINES, "-"*(WIDTH-4), NON)
-    cprint(screen_inner, 0, LINES, f"{screen_inner.__dir__} {curses.newpad(1000,IS_WIDTH).__dir__}", NON)
+    #cprint(screen_inner, 0, LINES, f"{screen_inner.__dir__} {curses.newpad(1000,IS_WIDTH).__dir__}", NON)
 
     screen_inner.refresh()
     input_outer.refresh()
@@ -321,13 +321,13 @@ def print_help(screen: curses.window, x: Callable[[str], int], instructions: lis
 
     global LINES
     
-    if instructions == []: 
+    if not instructions: 
         instructions = [
-        '[+] HackerChat help section [+]',
+        '[+] -- HackerChat help section -- [+]',
         '[+] !h[elp]: Prints this help message.',
         '[+] !q[uit]: Quits the program.',
         '[+] !o[nline]: Prints all online users.',
-        '[+] !cl[ear]: Clears the screen.'
+        '[+] !cl[ear]: Clears the screen.',
         '[+] !chat <username/groupname>: Opens specified chat.',
     ]
     

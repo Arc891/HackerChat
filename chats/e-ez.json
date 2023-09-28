@@ -1,0 +1,44 @@
+{
+    "name": "e-ez",
+    "info": "",
+    "users": [
+        {
+            "name": "ez",
+            "password": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "status": "online",
+            "address": [
+                "127.0.0.1",
+                39326
+            ],
+            "fd": 4
+        },
+        {
+            "name": "e",
+            "password": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "status": "online",
+            "address": [
+                "127.0.0.1",
+                41694
+            ],
+            "fd": 4
+        }
+    ],
+    "messages": [
+        {
+            "sender": "ez",
+            "receiver": "e",
+            "time": [
+                2023,
+                9,
+                28,
+                9,
+                7,
+                30,
+                3,
+                271,
+                1
+            ],
+            "content": "hi"
+        }
+    ]
+}

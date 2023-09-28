@@ -100,15 +100,8 @@ def client_setup(connection: socket.socket, address):
     
 
 def create_chat_name(n1: str, n2: str):
-    """Takes 2 usernames and returns them in alphabetical order"""
-    ln1 = n1.lower()
-    ln2 = n2.lower()
-    if ln1[0] < ln2[0]:
-        return n1, n2
-    elif ln1[0] > ln2[0]:
-        return n2, n1
-    else:
-        return create_chat_name(n1[1:], n2[1:])
+    """Takes 2 usernames and returns them in alphabetical order as a tuple"""
+    return (n1, n2) if n1 < n2 else (n2, n1)
 
 def client_thread(connection: socket.socket, address, user: User):
     global ONLINE

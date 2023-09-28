@@ -39,3 +39,4 @@ The open chat is a chat where you connect with the server, and enter a global ch
 - [ ]  Seperate chats
   - [ ]  Personal chats
   - [ ]  Group chats
+- [ ] Saving command history in main screen just like terminals
