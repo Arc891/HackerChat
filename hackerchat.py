@@ -105,7 +105,8 @@ def new_msg(sender: User, msg_type: str, content: str = "", receiver: User = Non
 
 def dynamic_rescaler():
     """A function to keep track of the terminal width, 
-    and will resize the current display if the width changes."""
+    and will resize the current display if the width changes.
+    TODO: NEEDS WORK, NOT FUNCTIONAL YET"""
 
     global T_WIDTH
     while True:

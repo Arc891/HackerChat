@@ -315,6 +315,35 @@ def setup_home_screen():
     input_inner.refresh()  
     return
 
+
+def setup_chat_screen():
+    """Sets up screens by clearing and adding borders etc"""
+
+    global HEIGHT, WIDTH, LINES, screen_inner, input_outer, input_inner
+
+    screen_inner.clear()
+    input_outer.clear()
+    input_inner.clear()
+
+    input_outer.border("|", "|", "-", "-", "+", "+", "+", "+")
+    
+    LINES = 0
+
+    logo_name = LOGO_FULL_WIDTH if WIDTH >= 59 else LOGO_HALF_WIDTH
+
+    with open(logo_name, 'r') as f:
+        for i, line in enumerate(f):
+            screen_inner.addstr(i, (WIDTH-len(line))//2-1, line[:-1], curses.A_BOLD)
+            LINES += 1
+    
+    cprint(screen_inner, 0, LINES, "-"*(WIDTH-4), NON)
+
+    screen_inner.refresh()
+    input_outer.refresh()
+    input_inner.refresh()  
+    return
+
+
 def print_help(screen: curses.window, x: Callable[[str], int], instructions: list[str] = []):
     """Prints help to the screen\n
     x is a function, which is passed the line to print and should return an x coordinate"""
@@ -362,7 +391,7 @@ def data_receive(s: socket.socket, host_port):
         
         elif msg.message_type == "DELIVERY":
             cprint(screen_inner, 0, LINES, "Data is delivered", SER)
-            to_print = msg.content
+            to_print = f"[> {msg.sender.name} {msg.sender.password}] {msg.content}"
 
         elif msg.message_type == "CHAT-OK":
             print_chat_messages(screen_inner, msg.content, User(**msg.receiver))
@@ -376,7 +405,7 @@ def data_receive(s: socket.socket, host_port):
         cprint(screen_inner, 0, LINES, to_print)
 
 def print_chat_messages(screen: curses.window, content: str, user: User):
-    """Prints chat messages to the screen"""
+    """Prints chat messages from received content to the screen"""
 
     global LINES, HEIGHT, WIDTH
 
@@ -474,6 +503,7 @@ def run_home(stdscr: curses.window, s: socket.socket, user: User):
             try:
                 msg = msg.split()
                 to_send = new_msg(user, "SEND", ' '.join(msg[2:]), User(msg[1]))
+                cprint(screen_inner, 0, LINES, f"{to_send}", SUC)
                 s.sendall(to_send)
             except IndexError:
                 cprint(screen_inner, 0, LINES, "Please enter a username to chat with.", ERR)
