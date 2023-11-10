@@ -542,6 +542,10 @@ def resize_and_setup(stdscr: curses.window):
     return
 
 
+def test(apr: int):
+    print(f"this is a test {apr}")
+
+
 def main(stdscr: curses.window):
     """Main function"""
 
